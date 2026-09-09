@@ -57,7 +57,7 @@ Download the latest **Release**. Run `AuraLauncher.exe`. Files unpack next to `A
 | `v0.0.0.1r` | release |
 | `v0.0.0.1p` | mandatory patch |
 
-Installed copies download **`Aura-<ver>-files.zip`** (Aura layer only). Full **`Aura-<ver>-win64.zip`** is first install, or a Gecko bump.
+Installed copies: launcher **Check Update** / **Download** pulls `main` (welcome, chrome, config). No new Release needed. Full **`Aura-<ver>-win64.zip`** is first install, or a Gecko bump.
 
 On-disk version: `version.txt`. Latest: **[v0.0.0.1r](https://github.com/SelfC0de/Aura-Browser/releases/tag/v0.0.0.1r)**. The browser toasts; apply in the launcher.
 
@@ -114,7 +114,7 @@ Chrome, Яндекс и VK-браузеры стучат вендору. Обы�
 | `v0.0.0.1r` | релиз |
 | `v0.0.0.1p` | обязательный патч |
 
-Уже установленный браузер качает **`Aura-<ver>-files.zip`** (только слой Aura). Полный **`Aura-<ver>-win64.zip`** — первая установка или смена Gecko.
+Уже стоит: лаунчер **Check Update** / **Download** тянет `main` (welcome, chrome, config). Новый Release не нужен. Полный **`Aura-<ver>-win64.zip`** — первая установка или смена Gecko.
 
 Версия на диске: `version.txt`. Актуальный релиз: **[v0.0.0.1r](https://github.com/SelfC0de/Aura-Browser/releases/tag/v0.0.0.1r)**. Тост в браузере, установка через лаунчер.
 

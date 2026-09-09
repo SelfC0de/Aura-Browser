@@ -36,6 +36,7 @@ static wchar_t gRoot[MAX_PATH];
 static wchar_t gLocalStr[64] = L"0.0.0.0";
 static wchar_t gRemoteStr[64] = L"-";
 static wchar_t gUrl[1024];
+static wchar_t gSha[80];
 static wchar_t gStatus[400] = L"Check GitHub for a newer tag. Download unpacks next to AuraBrowser.exe.";
 static wchar_t gErr[240];
 static Ver gLocal = {0, 0, 0, 0, 0};
@@ -45,6 +46,7 @@ static int gPct = 0;
 static int gHover = 0;
 static int gInstalled = 0;
 static int gAuto = 0;
+static int gGitMode = 0;
 static CRITICAL_SECTION gCs;
 
 #define COL_BG RGB(18, 18, 20)
@@ -574,7 +576,272 @@ static int pick_release(const char *json) {
   return 1;
 }
 
+static int unzip(const wchar_t *zip, const wchar_t *dest);
+
+static void read_applied(wchar_t *out, int n) {
+  out[0] = 0;
+  wchar_t path[MAX_PATH];
+  join(path, MAX_PATH, gRoot, L"updates\\applied.sha");
+  FILE *f = _wfopen(path, L"rt");
+  if (!f) return;
+  if (fgetws(out, n, f)) {
+    wchar_t *nl = wcspbrk(out, L"\r\n");
+    if (nl) *nl = 0;
+  }
+  fclose(f);
+}
+
+static void write_applied(const wchar_t *sha) {
+  wchar_t dir[MAX_PATH], path[MAX_PATH];
+  join(dir, MAX_PATH, gRoot, L"updates");
+  CreateDirectoryW(dir, 0);
+  join(path, MAX_PATH, dir, L"applied.sha");
+  FILE *f = _wfopen(path, L"wt");
+  if (!f) return;
+  fputws(sha, f);
+  fputws(L"\n", f);
+  fclose(f);
+}
+
+static int parse_sha_json(const char *json, wchar_t *out, int n) {
+  const char *p = strstr(json, "\"sha\"");
+  if (!p) return 0;
+  p = strchr(p, ':');
+  if (!p) return 0;
+  p++;
+  while (*p == ' ' || *p == '"') p++;
+  wchar_t tmp[80];
+  int i = 0;
+  while (*p && *p != '"' && i < 79) {
+    tmp[i++] = (wchar_t)(unsigned char)*p++;
+  }
+  tmp[i] = 0;
+  wcsncpy(out, tmp, n - 1);
+  out[n - 1] = 0;
+  return i >= 7;
+}
+
+static int robocopy_dir(const wchar_t *src, const wchar_t *dst) {
+  if (!exists(src)) return 1;
+  CreateDirectoryW(dst, 0);
+  wchar_t rob[MAX_PATH];
+  GetSystemDirectoryW(rob, MAX_PATH);
+  wcscat(rob, L"\\robocopy.exe");
+  wchar_t args[1400];
+  swprintf(args, 1400, L"\"%s\" \"%s\" /E /NFL /NDL /NJH /NJS /nc /ns /np", src, dst);
+  int c = run_cmd(rob, args, 0);
+  return c >= 0 && c < 8;
+}
+
+static int run_ps1(const wchar_t *script, const wchar_t *extra) {
+  wchar_t windir[MAX_PATH], ps[MAX_PATH];
+  GetWindowsDirectoryW(windir, MAX_PATH);
+  swprintf(ps, MAX_PATH, L"%s\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", windir);
+  wchar_t args[1400];
+  if (extra && extra[0])
+    swprintf(args, 1400, L"-NoProfile -ExecutionPolicy Bypass -File \"%s\" %s", script, extra);
+  else
+    swprintf(args, 1400, L"-NoProfile -ExecutionPolicy Bypass -File \"%s\"", script);
+  return run_cmd(ps, args, gRoot) == 0;
+}
+
+static int find_repo_root(const wchar_t *stage, wchar_t *out, int n) {
+  wchar_t probe[MAX_PATH];
+  swprintf(probe, MAX_PATH, L"%s\\welcome\\welcome.css", stage);
+  if (exists(probe)) {
+    wcsncpy(out, stage, n);
+    return 1;
+  }
+  WIN32_FIND_DATAW fd;
+  wchar_t pat[MAX_PATH];
+  swprintf(pat, MAX_PATH, L"%s\\*", stage);
+  HANDLE h = FindFirstFileW(pat, &fd);
+  if (h == INVALID_HANDLE_VALUE) return 0;
+  int ok = 0;
+  do {
+    if (!(fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) continue;
+    if (fd.cFileName[0] == L'.') continue;
+    swprintf(probe, MAX_PATH, L"%s\\%s\\welcome\\welcome.css", stage, fd.cFileName);
+    if (exists(probe)) {
+      swprintf(out, n, L"%s\\%s", stage, fd.cFileName);
+      ok = 1;
+      break;
+    }
+  } while (FindNextFileW(h, &fd));
+  FindClose(h);
+  return ok;
+}
+
+static int pack_omni() {
+  wchar_t script[MAX_PATH], extra[600];
+  join(script, MAX_PATH, gRoot, L"src\\pack_omni.ps1");
+  if (!exists(script))
+    join(script, MAX_PATH, gRoot, L"updates\\repo\\src\\pack_omni.ps1");
+  if (!exists(script)) {
+    wchar_t repo[MAX_PATH];
+    join(repo, MAX_PATH, gRoot, L"updates\\stage");
+    wchar_t rootfound[MAX_PATH];
+    if (find_repo_root(repo, rootfound, MAX_PATH))
+      swprintf(script, MAX_PATH, L"%s\\src\\pack_omni.ps1", rootfound);
+  }
+  if (!exists(script)) return 0;
+  swprintf(extra, 600, L"-Root \"%s\"", gRoot);
+  return run_ps1(script, extra);
+}
+
+static int apply_git_overlay(const wchar_t *zip) {
+  wchar_t stage[MAX_PATH], repo[MAX_PATH], src[MAX_PATH], dst[MAX_PATH];
+  join(stage, MAX_PATH, gRoot, L"updates\\stage");
+  wchar_t sys[MAX_PATH], cmd[MAX_PATH], args[600];
+  GetSystemDirectoryW(sys, MAX_PATH);
+  swprintf(cmd, MAX_PATH, L"%s\\cmd.exe", sys);
+  swprintf(args, 600, L"/c rmdir /s /q \"%s\" & mkdir \"%s\"", stage, stage);
+  run_cmd(cmd, args, 0);
+  CreateDirectoryW(stage, 0);
+  ui(L"Unpacking Aura files from GitHub…", ST_APPLY, 50);
+  if (!unzip(zip, stage)) {
+    ui(L"Unpack failed (tar).", ST_ERR, 50);
+    return 0;
+  }
+  if (!find_repo_root(stage, repo, MAX_PATH)) {
+    ui(L"GitHub zip has no welcome\\ folder.", ST_ERR, 50);
+    return 0;
+  }
+  kill_browser();
+  ui(L"Copying Aura layer. Engine dlls stay.", ST_APPLY, 70);
+  swprintf(src, MAX_PATH, L"%s\\welcome", repo);
+  swprintf(dst, MAX_PATH, L"%s\\engine\\welcome", gRoot);
+  robocopy_dir(src, dst);
+  swprintf(src, MAX_PATH, L"%s\\chrome", repo);
+  swprintf(dst, MAX_PATH, L"%s\\engine\\chrome", gRoot);
+  robocopy_dir(src, dst);
+  swprintf(src, MAX_PATH, L"%s\\config\\filters", repo);
+  swprintf(dst, MAX_PATH, L"%s\\engine\\filters", gRoot);
+  robocopy_dir(src, dst);
+  swprintf(src, MAX_PATH, L"%s\\config\\pref", repo);
+  swprintf(dst, MAX_PATH, L"%s\\engine\\defaults\\pref", gRoot);
+  robocopy_dir(src, dst);
+  swprintf(src, MAX_PATH, L"%s\\config\\extensions", repo);
+  swprintf(dst, MAX_PATH, L"%s\\engine\\distribution\\extensions", gRoot);
+  robocopy_dir(src, dst);
+  swprintf(src, MAX_PATH, L"%s\\config\\user.js", repo);
+  swprintf(dst, MAX_PATH, L"%s\\engine\\user.js", gRoot);
+  if (exists(src)) CopyFileW(src, dst, FALSE);
+  swprintf(src, MAX_PATH, L"%s\\config\\aura.cfg", repo);
+  swprintf(dst, MAX_PATH, L"%s\\engine\\aura.cfg", gRoot);
+  if (exists(src)) CopyFileW(src, dst, FALSE);
+  swprintf(src, MAX_PATH, L"%s\\config\\policies.json", repo);
+  swprintf(dst, MAX_PATH, L"%s\\engine\\distribution\\policies.json", gRoot);
+  if (exists(src)) CopyFileW(src, dst, FALSE);
+  swprintf(src, MAX_PATH, L"%s\\config\\distribution.ini", repo);
+  swprintf(dst, MAX_PATH, L"%s\\engine\\distribution\\distribution.ini", gRoot);
+  if (exists(src)) CopyFileW(src, dst, FALSE);
+  swprintf(src, MAX_PATH, L"%s\\version.txt", repo);
+  swprintf(dst, MAX_PATH, L"%s\\version.txt", gRoot);
+  if (exists(src)) CopyFileW(src, dst, FALSE);
+  swprintf(src, MAX_PATH, L"%s\\src\\pack_omni.ps1", repo);
+  swprintf(dst, MAX_PATH, L"%s\\src\\pack_omni.ps1", gRoot);
+  CreateDirectoryW(gRoot, 0);
+  {
+    wchar_t srcdir[MAX_PATH];
+    join(srcdir, MAX_PATH, gRoot, L"src");
+    CreateDirectoryW(srcdir, 0);
+  }
+  if (exists(src)) CopyFileW(src, dst, FALSE);
+  swprintf(dst, MAX_PATH, L"%s\\data\\chrome", gRoot);
+  CreateDirectoryW(dst, 0);
+  swprintf(src, MAX_PATH, L"%s\\engine\\chrome\\userChrome.css", gRoot);
+  wchar_t d2[MAX_PATH];
+  join(d2, MAX_PATH, dst, L"userChrome.css");
+  if (exists(src)) CopyFileW(src, d2, FALSE);
+  join(d2, MAX_PATH, dst, L"userContent.css");
+  swprintf(src, MAX_PATH, L"%s\\engine\\chrome\\userContent.css", gRoot);
+  if (exists(src)) CopyFileW(src, d2, FALSE);
+
+  ui(L"Packing HUD into omni.ja…", ST_APPLY, 90);
+  if (!pack_omni()) {
+    ui(L"Files copied, but omni.ja pack failed. HUD may be stale until pack_omni.ps1 runs.", ST_ERR, 90);
+    return 0;
+  }
+  swprintf(args, 600, L"/c rmdir /s /q \"%s\\data\\startupCache\"", gRoot);
+  run_cmd(cmd, args, 0);
+  if (gSha[0]) write_applied(gSha);
+  read_local();
+  gInstalled = installed();
+  ui(L"Aura files updated from GitHub. Engine dlls unchanged. data\\ kept.", ST_DONE, 100);
+  wchar_t stub[MAX_PATH];
+  join(stub, MAX_PATH, gRoot, L"AuraBrowser.exe");
+  if (exists(stub)) ShellExecuteW(0, L"open", stub, 0, gRoot, SW_SHOWNORMAL);
+  return 1;
+}
+
+static int check_git_main() {
+  wchar_t upd[MAX_PATH], cpath[MAX_PATH], vpath[MAX_PATH], applied[80];
+  join(upd, MAX_PATH, gRoot, L"updates");
+  CreateDirectoryW(upd, 0);
+  join(cpath, MAX_PATH, upd, L"commit.json");
+  join(vpath, MAX_PATH, upd, L"remote-version.txt");
+  ui(L"Checking GitHub main…", ST_CHECK, gPct);
+  if (!http_get(L"api.github.com", L"/repos/SelfC0de/Aura-Browser/commits/main", 1, cpath))
+    return 0;
+  FILE *f = _wfopen(cpath, L"rb");
+  if (!f) return 0;
+  fseek(f, 0, SEEK_END);
+  long n = ftell(f);
+  fseek(f, 0, SEEK_SET);
+  char *json = (char *)HeapAlloc(GetProcessHeap(), 0, n + 1);
+  if (!json) {
+    fclose(f);
+    return 0;
+  }
+  fread(json, 1, n, f);
+  json[n] = 0;
+  fclose(f);
+  if (!parse_sha_json(json, gSha, 80)) {
+    HeapFree(GetProcessHeap(), 0, json);
+    return 0;
+  }
+  HeapFree(GetProcessHeap(), 0, json);
+  gRemoteStr[0] = 0;
+  if (http_get(L"raw.githubusercontent.com", L"/SelfC0de/Aura-Browser/main/version.txt", 1, vpath)) {
+    FILE *vf = _wfopen(vpath, L"rt, ccs=UTF-8");
+    if (!vf) vf = _wfopen(vpath, L"rt");
+    if (vf) {
+      wchar_t buf[64];
+      if (fgetws(buf, 64, vf)) {
+        wchar_t *nl = wcspbrk(buf, L"\r\n");
+        if (nl) *nl = 0;
+        wcsncpy(gRemoteStr, buf, 63);
+        parse_ver(buf, &gRemote);
+      }
+      fclose(vf);
+    }
+  }
+  if (!gRemoteStr[0]) {
+    wcsncpy(gRemoteStr, gSha, 7);
+    gRemoteStr[7] = 0;
+  }
+  read_applied(applied, 80);
+  if (applied[0] && !wcscmp(applied, gSha)) {
+    ui(L"This copy matches GitHub main.", ST_DONE, 0);
+    return 1;
+  }
+  gGitMode = 1;
+  wcsncpy(gUrl, L"https://codeload.github.com/SelfC0de/Aura-Browser/zip/refs/heads/main", 1023);
+  gUrl[1023] = 0;
+  wchar_t msg[400];
+  swprintf(msg, 400, L"GitHub main has new files (%s). Download pulls Aura layer only. data\\ and Gecko dlls stay.", gRemoteStr);
+  ui(msg, ST_READY, 0);
+  return 1;
+}
+
 static DWORD WINAPI th_check(LPVOID) {
+  gGitMode = 0;
+  gSha[0] = 0;
+  if (gInstalled) {
+    if (check_git_main()) return 0;
+    ui(L"GitHub main unreachable, checking Releases…", ST_CHECK, gPct);
+  }
   ui(L"Checking GitHub releases…", ST_CHECK, gPct);
   wchar_t upd[MAX_PATH];
   join(upd, MAX_PATH, gRoot, L"updates");
@@ -774,6 +1041,16 @@ static DWORD WINAPI th_down(LPVOID) {
   join(zip, MAX_PATH, upd, L"payload.zip");
   join(side, MAX_PATH, gRoot, L"aura-payload.zip");
 
+  if (gGitMode) {
+    ui(L"Downloading Aura files from GitHub…", ST_DOWN, 0);
+    if (!http_get(L"codeload.github.com", L"/SelfC0de/Aura-Browser/zip/refs/heads/main", 1, zip)) {
+      ui(L"Download failed.", ST_ERR, gPct);
+      return 0;
+    }
+    apply_git_overlay(zip);
+    return 0;
+  }
+
   if (!gUrl[0] && exists(side)) {
     CopyFileW(side, zip, FALSE);
     ui(L"Using aura-payload.zip beside the launcher.", ST_APPLY, 100);
@@ -891,6 +1168,8 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR cmd, int) {
   gInstalled = installed();
   if (!gInstalled)
     wcsncpy(gStatus, L"Aura is not in this folder. Check Update, then Download - files unpack next to this exe.", 399);
+  else
+    wcsncpy(gStatus, L"Check GitHub main. Download pulls Aura files only. Gecko dlls stay.", 399);
 
   if (cmd && wcsstr(cmd, L"--update")) gAuto = 1;
 
