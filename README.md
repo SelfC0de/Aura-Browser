@@ -10,108 +10,50 @@
 
 <a id="english"></a>
 
-## English
+# Aura
 
-Chrome, Yandex and VK browsers report home. Stock Firefox talks to Mozilla. Hardened forks that fake the UA or turn on RFP break Gosuslugi, Sber and VK.
+Aura is a portable privacy browser for Windows, based on Firefox ESR.
 
-**Aura** is a portable Windows daily driver on Gecko ESR 153: real Firefox 153 UA, Mozilla outbound cut, tracking and fingerprinting on, passwords behind a master key.
+It is built for daily use: no telemetry, no Mozilla accounts or services, and a real Firefox 153 user-agent so sites like banks and Gosuslugi keep working.
 
-Source of the Aura layer is in this repo. Gecko binaries ship in **Releases**, not in git.
+## Download
 
-### Protection
+Windows 10/11 (64-bit): get **AuraLauncher.exe** from [Releases](https://github.com/SelfC0de/Aura-Browser/releases/latest). The launcher installs the browser. Later updates apply when you restart.
 
-| | |
-|:---|:---|
-| Transport | HTTPS-Only, Encrypted Client Hello, DNS over HTTPS (Mullvad, TRR 3) |
-| Tracking | ETP Strict, Total Cookie Protection, bounce-tracking, UTM/click-id strip |
-| Fingerprint | FPP (canvas / WebGL). UA stays Firefox 153 |
-| Filters | uBlock Origin + extra tracker lists |
-| WebRTC | no host ICE, page STUN ignored |
-| Schemes | `javascript:` `data:` `file:` `ms-msdt` blocked |
-| Process | content sandbox 9, web add-on install off |
-| Vault | master password required, autolock 30s |
+## Features
 
-Aura is not Tor and not a VPN. It does not spoof the UA. It does not send telemetry to SelfCode. The only extra request is a GitHub update check.
+- HTTPS-Only and DNS over HTTPS
+- Strict tracking protection and fingerprinting protection
+- uBlock Origin included
+- Password vault with a required master password
+- Portable — the profile stays next to the app
 
-### Verify
-
-| claim | file |
-| --- | --- |
-| telemetry / Mozilla URLs off | [`config/aura.cfg`](config/aura.cfg) |
-| FPP, TRR, cookies, ETP | [`config/user.js`](config/user.js) |
-| enterprise policy | [`config/policies.json`](config/policies.json) |
-| tracker filters | [`config/filters/aura-2026.txt`](config/filters/aura-2026.txt) |
-| vault + 30s lock | [`welcome/aura-vault.js`](welcome/aura-vault.js) |
-| scheme / chrome hardening | [`welcome/aura-ui.js`](welcome/aura-ui.js) |
-| installer / updater | [`src/AuraLauncher.cpp`](src/AuraLauncher.cpp) |
-| portable stub | [`src/AuraBrowser.cpp`](src/AuraBrowser.cpp) |
-
-### Install
-
-Download **AuraLauncher.exe**. It installs the browser. Updates apply on restart.
-
-### Updates
-
-| tag | |
-| --- | --- |
-| `v0.0.0.1r` | release |
-| `v0.0.0.1p` | mandatory patch |
-
-SelfCode · [VK](https://vk.com/selfcode_dev) · [Telegram](https://t.me/selfcode_dev)
+This repository holds the Aura overlay (settings, policies, UI). Firefox binaries are shipped in Releases.
 
 ---
 
 <a id="русский"></a>
 
-## Русский
+# Aura
 
-Chrome, Яндекс и VK-браузеры стучат вендору. Обычный Firefox — Mozilla. Жёсткие форки с поддельным UA или RFP ломают Госуслуги, Сбер и VK.
+Aura — портативный браузер с упором на приватность для Windows, на базе Firefox ESR.
 
-**Aura** — портативный ежедневный браузер на Gecko ESR 153: живой UA Firefox 153, без исходящих Mozilla, с трекингом и отпечатком под контролем, пароли за мастер-ключом.
+Рассчитан на каждый день: без телеметрии, без аккаунтов и сервисов Mozilla. User-agent как у Firefox 153 — банки и Госуслуги открываются как обычно.
 
-Исходники слоя Aura — в этом репозитории. Бинарники Gecko — в **Releases**, не в git.
+## Скачать
 
-### Защита
+Windows 10/11 (64-bit): **AuraLauncher.exe** в [Releases](https://github.com/SelfC0de/Aura-Browser/releases/latest). Лаунчер ставит браузер. Дальнейшие обновления — при перезапуске.
 
-| | |
-|:---|:---|
-| Транспорт | HTTPS-Only, Encrypted Client Hello, DNS over HTTPS (Mullvad, TRR 3) |
-| Трекинг | ETP Strict, Total Cookie Protection, bounce-tracking, срез UTM/click-id |
-| Отпечаток | FPP (canvas / WebGL). UA остаётся Firefox 153 |
-| Фильтры | uBlock Origin + дополнительные списки трекеров |
-| WebRTC | без host ICE, STUN со страницы игнорируется |
-| Схемы | `javascript:` `data:` `file:` `ms-msdt` закрыты |
-| Процесс | sandbox контента 9, установка аддонов с веба выключена |
-| Хранилище | мастер-пароль обязателен, автолок 30 с |
+## Возможности
 
-Это не Tor и не VPN. UA не подменяется. Телеметрии на SelfCode нет. Единственный лишний запрос — проверка обновлений на GitHub.
+- HTTPS-Only и DNS over HTTPS
+- Жёсткая защита от трекинга и снятия отпечатка
+- uBlock Origin в комплекте
+- Хранилище паролей с обязательным мастер-паролем
+- Портативный — профиль лежит рядом с программой
 
-### Проверка
-
-| утверждение | файл |
-| --- | --- |
-| телеметрия / URL Mozilla выключены | [`config/aura.cfg`](config/aura.cfg) |
-| FPP, TRR, cookies, ETP | [`config/user.js`](config/user.js) |
-| политика | [`config/policies.json`](config/policies.json) |
-| фильтры трекеров | [`config/filters/aura-2026.txt`](config/filters/aura-2026.txt) |
-| хранилище + лок 30 с | [`welcome/aura-vault.js`](welcome/aura-vault.js) |
-| схемы / chrome | [`welcome/aura-ui.js`](welcome/aura-ui.js) |
-| установщик | [`src/AuraLauncher.cpp`](src/AuraLauncher.cpp) |
-| portable stub | [`src/AuraBrowser.cpp`](src/AuraBrowser.cpp) |
-
-### Установка
-
-Скачай **AuraLauncher.exe**. Он ставит браузер. Обновления — при перезапуске.
-
-### Обновления
-
-| тег | |
-| --- | --- |
-| `v0.0.0.1r` | релиз |
-| `v0.0.0.1p` | обязательный патч |
-
-SelfCode · [VK](https://vk.com/selfcode_dev) · [Telegram](https://t.me/selfcode_dev)
+В этом репозитории — слой Aura (настройки, политики, интерфейс). Бинарники Firefox — в Releases.
 
 ---
 
-MIT © 2026 SelfCode
+MIT © 2026 [SelfCode](https://vk.com/selfcode_dev)
