@@ -1,21 +1,47 @@
-MIT License
+Copyright (c) 2026 SelfCode. All rights reserved.
 
-Copyright (c) 2026 SelfCode
+PROPRIETARY SOFTWARE LICENSE
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+Aura, Aura Browser, AuraLauncher, and all associated source, binaries,
+artwork, configuration, and documentation in this repository
+(the "Software") are the exclusive property of SelfCode.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+No license is granted to any person or system except the limited right
+for an end user to download official builds from SelfCode and run them
+unmodified for personal use.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+WITHOUT PRIOR WRITTEN PERMISSION FROM SELFCODE YOU MAY NOT:
+
+  - copy, fork, mirror, or clone this repository for republication
+  - modify, patch, or create derivative works
+  - rebuild, recompile, or redistribute the Software
+  - reimplement Aura or a substantial part of it
+  - use this repository as a template, training example, or source
+    from which to generate another browser or fork
+  - remove or alter copyright, license, or proprietary notices
+
+Official binaries are provided "AS IS", without warranty of any kind.
+
+Contact: https://vk.com/selfcode_dev  ·  https://t.me/selfcode_dev
+
+---
+
+ПРОПРИЕТАРНАЯ ЛИЦЕНЗИЯ
+
+Aura, Aura Browser, AuraLauncher и все исходники, сборки, графика,
+конфигурация и документация в этом репозитории — собственность SelfCode.
+
+Разрешено только скачать официальную сборку SelfCode и запускать её
+без изменений для личного пользования.
+
+БЕЗ ПИСЬМЕННОГО РАЗРЕШЕНИЯ SELFCODE НЕЛЬЗЯ:
+
+  - копировать, форкать, зеркалировать репозиторий
+  - менять, патчить, делать производные работы
+  - пересобирать и распространять
+  - воссоздавать Aura или существенную часть
+  - использовать этот репозиторий как шаблон или источник для
+    генерации другого браузера или форка
+  - снимать уведомления об авторском праве
+
+Официальные сборки поставляются «как есть», без гарантий.

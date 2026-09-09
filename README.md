@@ -30,6 +30,8 @@ Windows 10/11 (64-bit): get **AuraLauncher.exe** from [Releases](https://github.
 
 This repository holds the Aura overlay (settings, policies, UI). Firefox binaries are shipped in Releases.
 
+**Proprietary.** All rights reserved. No forking, copying, modification, redistribution, or reimplementation. Official builds only — see [LICENSE](LICENSE).
+
 ---
 
 <a id="русский"></a>
@@ -54,6 +56,8 @@ Windows 10/11 (64-bit): **AuraLauncher.exe** в [Releases](https://github.com/Se
 
 В этом репозитории — слой Aura (настройки, политики, интерфейс). Бинарники Firefox — в Releases.
 
+**Проприетарно.** Все права защищены. Форки, копии, пересборки и воссоздание Aura запрещены. Только официальные сборки — [LICENSE](LICENSE).
+
 ---
 
-MIT © 2026 [SelfCode](https://vk.com/selfcode_dev)
+© 2026 [SelfCode](https://vk.com/selfcode_dev). All rights reserved.
