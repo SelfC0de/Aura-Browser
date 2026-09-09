@@ -31,7 +31,7 @@ Source of the Aura layer is in this repo. Gecko binaries ship in **Releases**, n
 | Process | content sandbox 9, web add-on install off |
 | Vault | master password required, autolock 30s |
 
-Aura is not Tor and not a VPN. It does not spoof the UA. It does not send telemetry to SelfCode. The only extra request is a GitHub Releases check for updates.
+Aura is not Tor and not a VPN. It does not spoof the UA. It does not send telemetry to SelfCode. The only extra request is a GitHub update check.
 
 ### Verify
 
@@ -56,10 +56,6 @@ Download the latest **Release**. Run `AuraLauncher.exe`. Files unpack next to `A
 | --- | --- |
 | `v0.0.0.1r` | release |
 | `v0.0.0.1p` | mandatory patch |
-
-Installed copies: launcher **Check Update** / **Download** pulls `main` (welcome, chrome, config). No new Release needed. Full **`Aura-<ver>-win64.zip`** is first install, or a Gecko bump.
-
-On-disk version: `version.txt`. Latest: **[v0.0.0.1r](https://github.com/SelfC0de/Aura-Browser/releases/tag/v0.0.0.1r)**. The browser toasts; apply in the launcher.
 
 SelfCode · [VK](https://vk.com/selfcode_dev) · [Telegram](https://t.me/selfcode_dev)
 
@@ -88,7 +84,7 @@ Chrome, Яндекс и VK-браузеры стучат вендору. Обы�
 | Процесс | sandbox контента 9, установка аддонов с веба выключена |
 | Хранилище | мастер-пароль обязателен, автолок 30 с |
 
-Это не Tor и не VPN. UA не подменяется. Телеметрии на SelfCode нет. Единственный лишний запрос — проверка релизов на GitHub.
+Это не Tor и не VPN. UA не подменяется. Телеметрии на SelfCode нет. Единственный лишний запрос — проверка обновлений на GitHub.
 
 ### Проверка
 
@@ -113,10 +109,6 @@ Chrome, Яндекс и VK-браузеры стучат вендору. Обы�
 | --- | --- |
 | `v0.0.0.1r` | релиз |
 | `v0.0.0.1p` | обязательный патч |
-
-Уже стоит: лаунчер **Check Update** / **Download** тянет `main` (welcome, chrome, config). Новый Release не нужен. Полный **`Aura-<ver>-win64.zip`** — первая установка или смена Gecko.
-
-Версия на диске: `version.txt`. Актуальный релиз: **[v0.0.0.1r](https://github.com/SelfC0de/Aura-Browser/releases/tag/v0.0.0.1r)**. Тост в браузере, установка через лаунчер.
 
 SelfCode · [VK](https://vk.com/selfcode_dev) · [Telegram](https://t.me/selfcode_dev)
 
