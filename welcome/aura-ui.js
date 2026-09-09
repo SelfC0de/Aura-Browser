@@ -966,19 +966,56 @@
       return parseVer("0.0.0.0");
     }
   }
-  function launcherFile() {
+  function updatesDir() {
     const f = installRoot();
-    f.append("AuraLauncher.exe");
+    f.append("updates");
+    if (!f.exists()) f.create(Ci.nsIFile.DIRECTORY_TYPE, 0o755);
     return f;
   }
-  function openLauncher() {
+  function readShaFile(name) {
     try {
-      const f = launcherFile();
-      if (!f.exists()) return;
-      const p = Cc["@mozilla.org/process/util;1"].createInstance(Ci.nsIProcess);
-      p.init(f);
-      p.run(false, ["--update"], 1);
+      const f = updatesDir();
+      f.append(name);
+      if (!f.exists()) return "";
+      const is = Cc["@mozilla.org/network/file-input-stream;1"].createInstance(Ci.nsIFileInputStream);
+      is.init(f, 0x01, 0o400, 0);
+      const s = Cc["@mozilla.org/scriptableinputstream;1"].createInstance(Ci.nsIScriptableInputStream);
+      s.init(is);
+      const t = s.read(s.available() || 0);
+      s.close();
+      is.close();
+      return String(t).replace(/\s+/g, "");
+    } catch (e) {
+      return "";
+    }
+  }
+  function writeShaFile(name, sha) {
+    const f = updatesDir();
+    f.append(name);
+    const os = Cc["@mozilla.org/network/file-output-stream;1"].createInstance(Ci.nsIFileOutputStream);
+    os.init(f, 0x02 | 0x08 | 0x20, 0o644, 0);
+    const t = Cc["@mozilla.org/intl/converter-output-stream;1"].createInstance(Ci.nsIConverterOutputStream);
+    t.init(os, "UTF-8", 0, 0);
+    t.writeString(sha + "\n");
+    t.close();
+  }
+  function parseCommitSha(text) {
+    const m = String(text).match(/\/commit\/([0-9a-f]{7,40})/i);
+    return m ? m[1] : "";
+  }
+  function restartAura() {
+    try {
+      const stub = installRoot();
+      stub.append("AuraBrowser.exe");
+      if (stub.exists()) {
+        const p = Cc["@mozilla.org/process/util;1"].createInstance(Ci.nsIProcess);
+        p.init(stub);
+        p.run(false, [], 0);
+      }
     } catch (e) {}
+    try {
+      Services.startup.quit(Services.startup.eAttemptQuit);
+    } catch (e2) {}
   }
   function hideToast(win) {
     try {
@@ -986,116 +1023,87 @@
       if (el) el.remove();
     } catch (e) {}
   }
-  function showToast(win, kind) {
+  function showToast(win) {
     const doc = win.document;
     if (!doc || doc.getElementById("aura-update-toast")) return;
     const el = doc.createElementNS("http://www.w3.org/1999/xhtml", "div");
     el.id = "aura-update-toast";
-    if (kind === "p") el.classList.add("patch");
     el.style.cssText =
-      "position:fixed;top:52px;right:18px;z-index:2147483646;width:320px;padding:16px 18px 14px;border-radius:16px;color:#f4e9ec;background-color:#4a1520;border:1px solid " +
-      (kind === "p" ? "#e0243a" : "#2a0c12") +
-      ";box-shadow:inset 0 1px 0 rgba(255,220,230,.1),0 18px 40px rgba(0,0,0,.45);cursor:pointer;font:400 13px/1.35 Segoe UI,sans-serif";
+      "position:fixed;top:52px;right:18px;z-index:2147483646;width:320px;padding:16px 18px 14px;border-radius:16px;color:#f4e9ec;background-color:#4a1520;border:1px solid #2a0c12;box-shadow:inset 0 1px 0 rgba(255,220,230,.1),0 18px 40px rgba(0,0,0,.45);cursor:pointer;font:400 13px/1.35 Segoe UI,sans-serif";
     const h = doc.createElementNS("http://www.w3.org/1999/xhtml", "div");
     h.className = "h";
-    h.textContent = "Browser has Updated!";
+    h.textContent = "Update ready";
     const s = doc.createElementNS("http://www.w3.org/1999/xhtml", "div");
     s.className = "s";
-    s.textContent = "Open Launcher for Update Now.";
+    s.textContent = "Restart to install";
     el.appendChild(h);
     el.appendChild(s);
     el.addEventListener("click", function () {
-      openLauncher();
-      hideToast(win);
+      restartAura();
     });
     (doc.documentElement || doc.body).appendChild(el);
-    if (kind !== "p") {
-      win.setTimeout(function () {
-        try {
-          el.classList.add("out");
-          win.setTimeout(function () {
-            hideToast(win);
-          }, 380);
-        } catch (e) {}
-      }, 12000);
-    }
   }
-  function paintToasts(kind) {
+  function paintToasts() {
     for (const win of Services.wm.getEnumerator("navigator:browser")) {
       try {
-        showToast(win, kind);
+        showToast(win);
       } catch (e) {}
     }
   }
-  let updateWatchOn = false;
-  function pickRemote(list, local) {
-    let best = null;
-    for (const rel of list) {
-      const v = parseVer(rel.tag_name);
-      if (!v) continue;
-      if (!isNewer(v, local)) continue;
-      if (!best || cmpQuad(v, best) > 0 || (cmpQuad(v, best) === 0 && v.kind === "p" && best.kind !== "p"))
-        best = v;
-    }
-    return best;
-  }
-  function checkGithub() {
-    const local = readLocalVer();
-    const seen = Services.prefs.getStringPref("aura.update.seenTag", "");
+  function downloadUpdate(sha) {
     const xhr = Cc["@mozilla.org/xmlextras/xmlhttprequest;1"].createInstance(Ci.nsIXMLHttpRequest);
-    xhr.open("GET", "https://api.github.com/repos/SelfC0de/Aura-Browser/releases?per_page=20");
-    xhr.setRequestHeader("Accept", "application/vnd.github+json");
-    xhr.setRequestHeader("User-Agent", "AuraBrowser/0.0.0.0");
+    xhr.open("GET", "https://codeload.github.com/SelfC0de/Aura-Browser/zip/refs/heads/main");
+    xhr.responseType = "arraybuffer";
+    xhr.setRequestHeader("User-Agent", "AuraBrowser");
+    xhr.timeout = 120000;
+    xhr.onload = function () {
+      if (xhr.status < 200 || xhr.status >= 300) return;
+      const dest = updatesDir();
+      dest.append("repo.zip");
+      IOUtils.write(dest.path, new Uint8Array(xhr.response)).then(function () {
+        writeShaFile("pending.sha", sha);
+        paintToasts();
+      }).catch(function () {});
+    };
+    xhr.send();
+  }
+  let updateWatchOn = false;
+  function checkGithub() {
+    const xhr = Cc["@mozilla.org/xmlextras/xmlhttprequest;1"].createInstance(Ci.nsIXMLHttpRequest);
+    xhr.open("GET", "https://github.com/SelfC0de/Aura-Browser/commits/main.atom");
+    xhr.setRequestHeader("User-Agent", "AuraBrowser");
     xhr.timeout = 15000;
     xhr.onload = function () {
       try {
         if (xhr.status < 200 || xhr.status >= 300) return;
-        const list = JSON.parse(xhr.responseText);
-        if (!Array.isArray(list) || !list.length) return;
-        const best = pickRemote(list, local);
-        if (!best) return;
-        if (best.raw === seen) return;
-        Services.prefs.setStringPref("aura.update.pending", best.raw);
-        paintToasts(best.kind);
-        if (best.kind === "p") {
-          try {
-            Services.tm.mainThread.dispatch(
-              {
-                run: function () {
-                  openLauncher();
-                },
-              },
-              Ci.nsIThread.DISPATCH_NORMAL
-            );
-          } catch (e) {
-            openLauncher();
-          }
+        const sha = parseCommitSha(xhr.responseText);
+        if (!sha) return;
+        if (sha === readShaFile("applied.sha")) return;
+        const zip = updatesDir();
+        zip.append("repo.zip");
+        if (sha === readShaFile("pending.sha") && zip.exists()) {
+          paintToasts();
+          return;
         }
+        downloadUpdate(sha);
       } catch (e) {}
     };
-    xhr.onerror = function () {};
     xhr.send();
   }
   function startUpdateWatch() {
     if (updateWatchOn) return;
     updateWatchOn = true;
-    const pending = Services.prefs.getStringPref("aura.update.pending", "");
-    if (pending) {
-      const v = parseVer(pending);
-      const local = readLocalVer();
-      if (v && isNewer(v, local)) {
-        Services.tm.mainThread.dispatch(
-          {
-            run: function () {
-              paintToasts(v.kind);
-            },
+    const zip = updatesDir();
+    zip.append("repo.zip");
+    if (readShaFile("pending.sha") && zip.exists() && readShaFile("pending.sha") !== readShaFile("applied.sha")) {
+      Services.tm.mainThread.dispatch(
+        {
+          run: function () {
+            paintToasts();
           },
-          Ci.nsIThread.DISPATCH_NORMAL
-        );
-      } else {
-        Services.prefs.setStringPref("aura.update.pending", "");
-        Services.prefs.setStringPref("aura.update.seenTag", pending);
-      }
+        },
+        Ci.nsIThread.DISPATCH_NORMAL
+      );
     }
     const t0 = Cc["@mozilla.org/timer;1"].createInstance(Ci.nsITimer);
     t0.initWithCallback({ notify: checkGithub }, 8000, Ci.nsITimer.TYPE_ONE_SHOT);

@@ -6,6 +6,7 @@
 #include <windowsx.h>
 #include <winhttp.h>
 #include <shellapi.h>
+#include <tlhelp32.h>
 #include <stdio.h>
 #include <string.h>
 #include <wchar.h>
@@ -370,12 +371,24 @@ static int run_cmd(const wchar_t *exe, const wchar_t *args, const wchar_t *cwd) 
   return (int)code;
 }
 
-static void kill_browser() {
-  wchar_t sys[MAX_PATH];
-  GetSystemDirectoryW(sys, MAX_PATH);
-  wchar_t exe[MAX_PATH];
-  swprintf(exe, MAX_PATH, L"%s\\taskkill.exe", sys);
-  run_cmd(exe, L"/IM AuraBrowser.exe /F /T", 0);
+static void kill_engine() {
+  HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+  if (snap == INVALID_HANDLE_VALUE) return;
+  PROCESSENTRY32W pe;
+  pe.dwSize = sizeof(pe);
+  if (Process32FirstW(snap, &pe)) {
+    do {
+      if (_wcsicmp(pe.szExeFile, L"AuraBrowser.exe") != 0) continue;
+      HANDLE h = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_TERMINATE, FALSE, pe.th32ProcessID);
+      if (!h) continue;
+      wchar_t path[MAX_PATH];
+      DWORD n = MAX_PATH;
+      if (QueryFullProcessImageNameW(h, 0, path, &n) && wcsstr(path, L"\\engine\\AuraBrowser.exe"))
+        TerminateProcess(h, 0);
+      CloseHandle(h);
+    } while (Process32NextW(snap, &pe));
+  }
+  CloseHandle(snap);
   Sleep(400);
 }
 
@@ -718,7 +731,7 @@ static int pack_omni() {
   return run_ps1(script, extra);
 }
 
-static int apply_git_overlay(const wchar_t *zip) {
+static int apply_git_overlay(const wchar_t *zip, int launch) {
   wchar_t stage[MAX_PATH], repo[MAX_PATH], src[MAX_PATH], dst[MAX_PATH];
   join(stage, MAX_PATH, gRoot, L"updates\\stage");
   wchar_t sys[MAX_PATH], cmd[MAX_PATH], args[600];
@@ -736,7 +749,7 @@ static int apply_git_overlay(const wchar_t *zip) {
     ui(L"GitHub zip has no welcome\\ folder.", ST_ERR, 50);
     return 0;
   }
-  kill_browser();
+  kill_engine();
   ui(L"Copying Aura layer. Engine dlls stay.", ST_APPLY, 70);
   swprintf(src, MAX_PATH, L"%s\\welcome", repo);
   swprintf(dst, MAX_PATH, L"%s\\engine\\welcome", gRoot);
@@ -794,13 +807,28 @@ static int apply_git_overlay(const wchar_t *zip) {
   }
   swprintf(args, 600, L"/c rmdir /s /q \"%s\\data\\startupCache\"", gRoot);
   run_cmd(cmd, args, 0);
+  if (!gSha[0]) {
+    wchar_t pend[MAX_PATH], buf[80];
+    join(pend, MAX_PATH, gRoot, L"updates\\pending.sha");
+    FILE *pf = _wfopen(pend, L"rt");
+    if (pf) {
+      if (fgetws(buf, 80, pf)) {
+        wchar_t *nl = wcspbrk(buf, L"\r\n");
+        if (nl) *nl = 0;
+        wcsncpy(gSha, buf, 79);
+      }
+      fclose(pf);
+    }
+  }
   if (gSha[0]) write_applied(gSha);
   read_local();
   gInstalled = installed();
   ui(L"Aura files updated from GitHub. Engine dlls unchanged. data\\ kept.", ST_DONE, 100);
-  wchar_t stub[MAX_PATH];
-  join(stub, MAX_PATH, gRoot, L"AuraBrowser.exe");
-  if (exists(stub)) ShellExecuteW(0, L"open", stub, 0, gRoot, SW_SHOWNORMAL);
+  if (launch) {
+    wchar_t stub[MAX_PATH];
+    join(stub, MAX_PATH, gRoot, L"AuraBrowser.exe");
+    if (exists(stub)) ShellExecuteW(0, L"open", stub, 0, gRoot, SW_SHOWNORMAL);
+  }
   return 1;
 }
 
@@ -1057,7 +1085,7 @@ static int apply_zip(const wchar_t *zip) {
     ui(L"Zip has no AuraBrowser.exe. Tag a zip of the install folder.", ST_ERR, 100);
     return 0;
   }
-  kill_browser();
+  kill_engine();
   if (!copy_tree(src, gRoot)) {
     ui(L"Copy into install folder failed.", ST_ERR, 100);
     return 0;
@@ -1087,7 +1115,7 @@ static DWORD WINAPI th_down(LPVOID) {
       ui(L"Download failed.", ST_ERR, gPct);
       return 0;
     }
-    apply_git_overlay(zip);
+    apply_git_overlay(zip, 1);
     return 0;
   }
 
@@ -1206,6 +1234,13 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR cmd, int) {
   wcsncpy(gRoot, mod, MAX_PATH);
   read_local();
   gInstalled = installed();
+  if (cmd && wcsstr(cmd, L"--silent")) {
+    wchar_t zip[MAX_PATH];
+    join(zip, MAX_PATH, gRoot, L"updates\\repo.zip");
+    if (exists(zip)) apply_git_overlay(zip, 0);
+    DeleteCriticalSection(&gCs);
+    return 0;
+  }
   if (!gInstalled)
     wcsncpy(gStatus, L"Aura is not in this folder. Check Update, then Download - files unpack next to this exe.", 399);
   else

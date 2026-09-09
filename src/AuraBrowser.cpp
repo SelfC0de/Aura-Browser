@@ -3,6 +3,7 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <stdio.h>
+#include <string.h>
 
 static void die(const wchar_t *msg) {
   MessageBoxW(NULL, msg, L"Aura", MB_OK | MB_ICONERROR);
@@ -29,6 +30,54 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
   if (GetFileAttributesW(engine) == INVALID_FILE_ATTRIBUTES)
     die(L"engine\\AuraBrowser.exe is missing.");
   CreateDirectoryW(profile, NULL);
+
+  {
+    wchar_t zip[MAX_PATH], pendp[MAX_PATH], appp[MAX_PATH], lock[MAX_PATH];
+    swprintf(zip, MAX_PATH, L"%s\\updates\\repo.zip", root);
+    swprintf(pendp, MAX_PATH, L"%s\\updates\\pending.sha", root);
+    swprintf(appp, MAX_PATH, L"%s\\updates\\applied.sha", root);
+    swprintf(lock, MAX_PATH, L"%s\\parent.lock", profile);
+    if (GetFileAttributesW(zip) != INVALID_FILE_ATTRIBUTES &&
+        GetFileAttributesW(pendp) != INVALID_FILE_ATTRIBUTES) {
+      wchar_t pend[80] = {0}, app[80] = {0};
+      FILE *f = _wfopen(pendp, L"rt");
+      if (f) {
+        fgetws(pend, 80, f);
+        fclose(f);
+      }
+      f = _wfopen(appp, L"rt");
+      if (f) {
+        fgetws(app, 80, f);
+        fclose(f);
+      }
+      wchar_t *nl = wcspbrk(pend, L"\r\n");
+      if (nl) *nl = 0;
+      nl = wcspbrk(app, L"\r\n");
+      if (nl) *nl = 0;
+      if (pend[0] && wcscmp(pend, app) != 0) {
+        for (int i = 0; i < 40; i++) {
+          if (GetFileAttributesW(lock) == INVALID_FILE_ATTRIBUTES) break;
+          Sleep(250);
+        }
+        DeleteFileW(lock);
+        wchar_t launcher[MAX_PATH], lcmd[1024];
+        swprintf(launcher, MAX_PATH, L"%s\\AuraLauncher.exe", root);
+        if (GetFileAttributesW(launcher) != INVALID_FILE_ATTRIBUTES) {
+          swprintf(lcmd, 1024, L"\"%s\" --silent", launcher);
+          STARTUPINFOW lsi;
+          PROCESS_INFORMATION lpi;
+          ZeroMemory(&lsi, sizeof(lsi));
+          lsi.cb = sizeof(lsi);
+          ZeroMemory(&lpi, sizeof(lpi));
+          if (CreateProcessW(launcher, lcmd, NULL, NULL, FALSE, 0, NULL, root, &lsi, &lpi)) {
+            WaitForSingleObject(lpi.hProcess, 180000);
+            CloseHandle(lpi.hThread);
+            CloseHandle(lpi.hProcess);
+          }
+        }
+      }
+    }
+  }
 
   wchar_t src[MAX_PATH], dst[MAX_PATH], chrome[MAX_PATH];
   swprintf(src, MAX_PATH, L"%s\\engine\\user.js", root);
