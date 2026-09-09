@@ -61,11 +61,11 @@ static CRITICAL_SECTION gCs;
 
 #define WM_AURA_UI (WM_APP + 1)
 
-static RECT rCheck = {24, 402, 268, 450};
-static RECT rDown = {278, 402, 536, 450};
-static RECT rPill = {24, 250, 536, 302};
-static RECT rClose = {504, 18, 536, 50};
-static RECT rUninst = {400, 464, 536, 484};
+static RECT rCheck = {32, 492, 324, 556};
+static RECT rDown = {348, 492, 608, 556};
+static RECT rPill = {32, 300, 608, 368};
+static RECT rClose = {596, 20, 628, 52};
+static RECT rUninst = {460, 568, 608, 588};
 
 #define ZIP_HOST L"github.com"
 #define ZIP_PATH L"/SelfC0de/Aura-Browser/releases/latest/download/Aura-win64.zip"
@@ -228,47 +228,36 @@ static void paint(HWND hwnd) {
   FillRect(m, &rc, bg);
   DeleteObject(bg);
 
-  HBRUSH glow = CreateSolidBrush(RGB(42, 18, 28));
-  {
-    RECT ge = {60, -80, 500, 160};
-    Ellipse(m, ge.left, ge.top, ge.right, ge.bottom);
-  }
-  DeleteObject(glow);
-  HBRUSH bg2 = CreateSolidBrush(COL_BG);
-  RECT cover = {0, 120, rc.right, rc.bottom};
-  FillRect(m, &cover, bg2);
-  DeleteObject(bg2);
-
   SetBkMode(m, TRANSPARENT);
-  HFONT fWord = CreateFontW(-40, 0, 0, 0, FW_BOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI Variable Display");
+  HFONT fWord = CreateFontW(-52, 0, 0, 0, FW_BOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI Variable Display");
   if (!fWord)
-    fWord = CreateFontW(-40, 0, 0, 0, FW_BOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
-  HFONT fSub = CreateFontW(-11, 0, 0, 0, FW_SEMIBOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
-  HFONT fK = CreateFontW(-11, 0, 0, 0, FW_NORMAL, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
-  HFONT fV = CreateFontW(-18, 0, 0, 0, FW_SEMIBOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI Variable Display");
+    fWord = CreateFontW(-52, 0, 0, 0, FW_BOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
+  HFONT fSub = CreateFontW(-14, 0, 0, 0, FW_SEMIBOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
+  HFONT fK = CreateFontW(-13, 0, 0, 0, FW_SEMIBOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
+  HFONT fV = CreateFontW(-24, 0, 0, 0, FW_SEMIBOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI Variable Display");
   if (!fV)
-    fV = CreateFontW(-18, 0, 0, 0, FW_SEMIBOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
-  HFONT fB = CreateFontW(-14, 0, 0, 0, FW_SEMIBOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
-  HFONT fS = CreateFontW(-13, 0, 0, 0, FW_NORMAL, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
-  HFONT fP = CreateFontW(-11, 0, 0, 0, FW_SEMIBOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
+    fV = CreateFontW(-24, 0, 0, 0, FW_SEMIBOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
+  HFONT fB = CreateFontW(-16, 0, 0, 0, FW_SEMIBOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
+  HFONT fS = CreateFontW(-16, 0, 0, 0, FW_NORMAL, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
+  HFONT fP = CreateFontW(-14, 0, 0, 0, FW_SEMIBOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
 
   SelectObject(m, fWord);
   SetTextColor(m, RGB(255, 138, 180));
-  RECT tw = {24, 18, 400, 68};
+  RECT tw = {32, 22, 520, 86};
   DrawTextW(m, L"Aura", -1, &tw, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
   SetTextColor(m, COL_ACCENT);
-  RECT tw2 = {25, 19, 401, 69};
+  RECT tw2 = {33, 23, 521, 87};
   DrawTextW(m, L"Aura", -1, &tw2, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 
   SelectObject(m, fSub);
-  SetTextColor(m, COL_MUTED);
-  RECT ts = {24, 68, 400, 88};
+  SetTextColor(m, RGB(176, 176, 184));
+  RECT ts = {32, 86, 520, 112};
   const wchar_t *sub = L"LAUNCHER";
   if (gRemote.kind == L'p') sub = L"MANDATORY PATCH";
   else if (!gInstalled) sub = L"INSTALLER";
   DrawTextW(m, sub, -1, &ts, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 
-  SetTextColor(m, gHover == 3 ? COL_TEXT : COL_MUTED);
+  SetTextColor(m, gHover == 3 ? COL_TEXT : RGB(176, 176, 184));
   SelectObject(m, fB);
   DrawTextW(m, L"x", 1, &rClose, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
 
@@ -287,27 +276,27 @@ static void paint(HWND hwnd) {
   LeaveCriticalSection(&gCs);
 
   SelectObject(m, fK);
-  SetTextColor(m, COL_MUTED);
-  RECT k1 = {24, 118, 160, 134};
-  RECT k2 = {168, 118, 320, 134};
+  SetTextColor(m, RGB(168, 168, 176));
+  RECT k1 = {32, 140, 240, 162};
+  RECT k2 = {260, 140, 480, 162};
   DrawTextW(m, L"INSTALLED", -1, &k1, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
   DrawTextW(m, L"LATEST", -1, &k2, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
   SelectObject(m, fV);
   SetTextColor(m, COL_TEXT);
-  RECT v1 = {24, 136, 160, 162};
-  RECT v2 = {168, 136, 360, 162};
+  RECT v1 = {32, 164, 240, 204};
+  RECT v2 = {260, 164, 520, 204};
   DrawTextW(m, inst ? loc : L"-", -1, &v1, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
   DrawTextW(m, rem[0] ? rem : L"-", -1, &v2, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 
   SelectObject(m, fS);
-  SetTextColor(m, RGB(200, 200, 208));
-  RECT sr = {24, 178, 536, 236};
+  SetTextColor(m, RGB(214, 214, 220));
+  RECT sr = {32, 220, 608, 288};
   DrawTextW(m, st, -1, &sr, DT_LEFT | DT_TOP | DT_WORDBREAK);
 
-  round_rect(m, rPill, 52, RGB(74, 21, 32), RGB(42, 12, 18));
-  hatch_clip(m, rPill, 52);
+  round_rect(m, rPill, 68, RGB(74, 21, 32), RGB(42, 12, 18));
+  hatch_clip(m, rPill, 68);
 
-  RECT track = {rPill.left + 18, rPill.top + 22, rPill.right - 58, rPill.bottom - 22};
+  RECT track = {rPill.left + 22, rPill.top + 28, rPill.right - 72, rPill.bottom - 28};
   round_rect(m, track, 8, RGB(18, 10, 12), RGB(18, 10, 12));
   int span = track.right - track.left;
   int fw = span * pct / 100;
@@ -317,8 +306,8 @@ static void paint(HWND hwnd) {
     round_rect(m, fr, 8, RGB(255, 208, 228), RGB(255, 208, 228));
   }
 
-  RECT pctR = {rPill.right - 50, rPill.top + 8, rPill.right - 8, rPill.bottom - 8};
-  round_rect(m, pctR, 36, RGB(20, 12, 14), RGB(20, 12, 14));
+  RECT pctR = {rPill.right - 62, rPill.top + 10, rPill.right - 10, rPill.bottom - 10};
+  round_rect(m, pctR, 48, RGB(20, 12, 14), RGB(20, 12, 14));
   wchar_t pbuf[16];
   swprintf(pbuf, 16, L"%d%%", pct);
   SelectObject(m, fP);
@@ -331,8 +320,8 @@ static void paint(HWND hwnd) {
   COLORREF c2 = gHover == 2 ? RGB(214, 74, 138) : COL_ACCENT;
   if (!canCheck) c1 = RGB(24, 24, 28);
   if (!canDown) c2 = RGB(90, 36, 58);
-  round_rect(m, rCheck, 14, c1, COL_LINE);
-  round_rect(m, rDown, 14, c2, c2);
+  round_rect(m, rCheck, 16, c1, COL_LINE);
+  round_rect(m, rDown, 16, c2, c2);
   SetTextColor(m, canCheck ? COL_TEXT : COL_MUTED);
   SelectObject(m, fB);
   DrawTextW(m, L"Check Update", -1, &rCheck, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
@@ -340,10 +329,10 @@ static void paint(HWND hwnd) {
   DrawTextW(m, L"Download", -1, &rDown, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
 
   SelectObject(m, fK);
-  SetTextColor(m, RGB(92, 92, 100));
-  RECT ft = {24, 464, 380, 484};
+  SetTextColor(m, RGB(140, 140, 148));
+  RECT ft = {32, 568, 430, 588};
   DrawTextW(m, L"github.com/SelfC0de/Aura-Browser", -1, &ft, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
-  SetTextColor(m, gHover == 4 ? RGB(255, 138, 180) : RGB(92, 92, 100));
+  SetTextColor(m, gHover == 4 ? RGB(255, 138, 180) : RGB(168, 168, 176));
   DrawTextW(m, L"Uninstall", -1, &rUninst, DT_RIGHT | DT_VCENTER | DT_SINGLELINE);
 
   BitBlt(hdc, 0, 0, rc.right, rc.bottom, m, 0, 0, SRCCOPY);
@@ -1060,6 +1049,7 @@ static int apply_git_overlay(const wchar_t *zip, int launch) {
   if (gSha[0]) write_applied(gSha);
   read_local();
   gInstalled = installed();
+  DeleteFileW(zip);
   ui(L"Aura files updated from GitHub. Engine dlls unchanged. data\\ kept.", ST_DONE, 100);
   if (launch) {
     wchar_t stub[MAX_PATH];
@@ -1269,7 +1259,15 @@ static int apply_zip(const wchar_t *zip) {
   write_local(gRemoteStr[0] ? gRemoteStr : L"0.0.0.0");
   read_local();
   gInstalled = installed();
-  ui(L"Installed. Files sit next to AuraBrowser.exe. Profile data\\ was kept.", ST_DONE, 100);
+  DeleteFileW(zip);
+  {
+    wchar_t extra[MAX_PATH];
+    join(extra, MAX_PATH, gRoot, L"aura-payload.zip");
+    DeleteFileW(extra);
+    swprintf(args, 600, L"/c rmdir /s /q \"%s\"", stage);
+    run_cmd(cmd, args, 0);
+  }
+  ui(L"Installed. Archive removed.", ST_DONE, 100);
   wchar_t stub[MAX_PATH];
   join(stub, MAX_PATH, gRoot, L"AuraBrowser.exe");
   if (exists(stub)) {
@@ -1436,11 +1434,11 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR cmd, int) {
   RegisterClassW(&wc);
 
   int sw = GetSystemMetrics(SM_CXSCREEN), sh = GetSystemMetrics(SM_CYSCREEN);
-  int x = (sw - 560) / 2, y = (sh - 500) / 2;
+  int x = (sw - 640) / 2, y = (sh - 600) / 2;
   HWND hwnd = CreateWindowExW(
       WS_EX_APPWINDOW, L"AuraSetup", L"Aura",
       WS_POPUP | WS_VISIBLE,
-      x, y, 560, 500, 0, 0, inst, 0);
+      x, y, 640, 600, 0, 0, inst, 0);
   gHwnd = hwnd;
   ShowWindow(hwnd, SW_SHOWNORMAL);
   UpdateWindow(hwnd);
