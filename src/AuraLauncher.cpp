@@ -34,9 +34,9 @@ static HWND gHwnd;
 static HINSTANCE gInst;
 static wchar_t gRoot[MAX_PATH];
 static wchar_t gLocalStr[64] = L"0.0.0.0";
-static wchar_t gRemoteStr[64] = L"—";
+static wchar_t gRemoteStr[64] = L"-";
 static wchar_t gUrl[1024];
-static wchar_t gStatus[400] = L"Check GitHub for a newer tag.";
+static wchar_t gStatus[400] = L"Check GitHub for a newer tag. Download unpacks next to AuraBrowser.exe.";
 static wchar_t gErr[240];
 static Ver gLocal = {0, 0, 0, 0, 0};
 static Ver gRemote = {0, 0, 0, 0, 0};
@@ -58,10 +58,10 @@ static CRITICAL_SECTION gCs;
 
 #define WM_AURA_UI (WM_APP + 1)
 
-static RECT rCheck = {20, 368, 248, 410};
-static RECT rDown = {260, 368, 480, 410};
-static RECT rBar = {20, 318, 480, 332};
-static RECT rClose = {462, 10, 490, 38};
+static RECT rCheck = {24, 402, 268, 450};
+static RECT rDown = {278, 402, 536, 450};
+static RECT rPill = {24, 250, 536, 302};
+static RECT rClose = {504, 18, 536, 50};
 
 static void ui(const wchar_t *st, int state, int pct) {
   EnterCriticalSection(&gCs);
@@ -187,6 +187,26 @@ static void round_rect(HDC dc, RECT r, int rad, COLORREF fill, COLORREF brd) {
   DeleteObject(br);
 }
 
+static void hatch_clip(HDC dc, RECT r, int rad) {
+  HRGN clip = CreateRoundRectRgn(r.left, r.top, r.right + 1, r.bottom + 1, rad, rad);
+  SelectClipRgn(dc, clip);
+  int h = r.bottom - r.top;
+  for (int x = r.left - h; x < r.right + h; x += 18) {
+    HPEN p1 = CreatePen(PS_SOLID, 9, COL_H1);
+    HPEN p2 = CreatePen(PS_SOLID, 9, COL_H2);
+    SelectObject(dc, p1);
+    MoveToEx(dc, x, r.top, 0);
+    LineTo(dc, x - h, r.bottom);
+    SelectObject(dc, p2);
+    MoveToEx(dc, x + 9, r.top, 0);
+    LineTo(dc, x + 9 - h, r.bottom);
+    DeleteObject(p1);
+    DeleteObject(p2);
+  }
+  SelectClipRgn(dc, 0);
+  DeleteObject(clip);
+}
+
 static void paint(HWND hwnd) {
   PAINTSTRUCT ps;
   HDC hdc = BeginPaint(hwnd, &ps);
@@ -200,146 +220,133 @@ static void paint(HWND hwnd) {
   FillRect(m, &rc, bg);
   DeleteObject(bg);
 
-  RECT hdr = {0, 0, rc.right, 92};
-  for (int x = -92; x < rc.right + 92; x += 18) {
-    HPEN p1 = CreatePen(PS_SOLID, 9, COL_H1);
-    HPEN p2 = CreatePen(PS_SOLID, 9, COL_H2);
-    SelectObject(m, p1);
-    MoveToEx(m, x, 0, 0);
-    LineTo(m, x - 92, 92);
-    SelectObject(m, p2);
-    MoveToEx(m, x + 9, 0, 0);
-    LineTo(m, x - 83, 92);
-    DeleteObject(p1);
-    DeleteObject(p2);
+  HBRUSH glow = CreateSolidBrush(RGB(42, 18, 28));
+  {
+    RECT ge = {60, -80, 500, 160};
+    Ellipse(m, ge.left, ge.top, ge.right, ge.bottom);
   }
-  HPEN edge = CreatePen(PS_SOLID, 1, RGB(42, 12, 18));
-  SelectObject(m, edge);
-  MoveToEx(m, 0, 92, 0);
-  LineTo(m, rc.right, 92);
-  DeleteObject(edge);
+  DeleteObject(glow);
+  HBRUSH bg2 = CreateSolidBrush(COL_BG);
+  RECT cover = {0, 120, rc.right, rc.bottom};
+  FillRect(m, &cover, bg2);
+  DeleteObject(bg2);
 
-  RECT badge = {18, 18, 74, 74};
-  round_rect(m, badge, 16, COL_ACCENT, RGB(255, 208, 228));
   SetBkMode(m, TRANSPARENT);
-  SetTextColor(m, RGB(255, 255, 255));
-  HFONT fA = CreateFontW(28, 0, 0, 0, FW_BOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
-  HFONT fT = CreateFontW(22, 0, 0, 0, FW_BOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
-  HFONT fS = CreateFontW(12, 0, 0, 0, FW_SEMIBOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
-  HFONT fB = CreateFontW(13, 0, 0, 0, FW_SEMIBOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
-  HFONT fM = CreateFontW(11, 0, 0, 0, FW_NORMAL, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
-  SelectObject(m, fA);
-  RECT ta = badge;
-  DrawTextW(m, L"A", 1, &ta, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
-  SelectObject(m, fT);
-  RECT tn = {88, 22, 400, 50};
-  DrawTextW(m, L"AURA", -1, &tn, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
-  SelectObject(m, fS);
-  SetTextColor(m, RGB(232, 208, 214));
-  RECT ts = {88, 50, 420, 74};
-  const wchar_t *sub = L"SETUP";
+  HFONT fWord = CreateFontW(-40, 0, 0, 0, FW_BOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI Variable Display");
+  if (!fWord)
+    fWord = CreateFontW(-40, 0, 0, 0, FW_BOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
+  HFONT fSub = CreateFontW(-11, 0, 0, 0, FW_SEMIBOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
+  HFONT fK = CreateFontW(-11, 0, 0, 0, FW_NORMAL, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
+  HFONT fV = CreateFontW(-18, 0, 0, 0, FW_SEMIBOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI Variable Display");
+  if (!fV)
+    fV = CreateFontW(-18, 0, 0, 0, FW_SEMIBOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
+  HFONT fB = CreateFontW(-14, 0, 0, 0, FW_SEMIBOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
+  HFONT fS = CreateFontW(-13, 0, 0, 0, FW_NORMAL, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
+  HFONT fP = CreateFontW(-11, 0, 0, 0, FW_SEMIBOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
+
+  SelectObject(m, fWord);
+  SetTextColor(m, RGB(255, 138, 180));
+  RECT tw = {24, 18, 400, 68};
+  DrawTextW(m, L"Aura", -1, &tw, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+  SetTextColor(m, COL_ACCENT);
+  RECT tw2 = {25, 19, 401, 69};
+  DrawTextW(m, L"Aura", -1, &tw2, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+
+  SelectObject(m, fSub);
+  SetTextColor(m, COL_MUTED);
+  RECT ts = {24, 68, 400, 88};
+  const wchar_t *sub = L"LAUNCHER";
   if (gRemote.kind == L'p') sub = L"MANDATORY PATCH";
   else if (!gInstalled) sub = L"INSTALLER";
   DrawTextW(m, sub, -1, &ts, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 
-  SetTextColor(m, RGB(232, 208, 214));
-  DrawTextW(m, L"X", 1, &rClose, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+  SetTextColor(m, gHover == 3 ? COL_TEXT : COL_MUTED);
+  SelectObject(m, fB);
+  DrawTextW(m, L"x", 1, &rClose, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
 
   wchar_t loc[64], rem[64], st[400];
   int state, pct, inst;
-  Ver rk;
   EnterCriticalSection(&gCs);
   wcsncpy(loc, gLocalStr, 63);
+  loc[63] = 0;
   wcsncpy(rem, gRemoteStr, 63);
+  rem[63] = 0;
   wcsncpy(st, gStatus, 399);
+  st[399] = 0;
   state = gState;
   pct = gPct;
   inst = gInstalled;
-  rk = gRemote;
   LeaveCriticalSection(&gCs);
 
-  SelectObject(m, fM);
+  SelectObject(m, fK);
   SetTextColor(m, COL_MUTED);
-  RECT k1 = {20, 112, 120, 130};
-  RECT k2 = {20, 140, 120, 158};
+  RECT k1 = {24, 118, 160, 134};
+  RECT k2 = {168, 118, 320, 134};
   DrawTextW(m, L"INSTALLED", -1, &k1, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
   DrawTextW(m, L"LATEST", -1, &k2, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
-  SelectObject(m, fB);
+  SelectObject(m, fV);
   SetTextColor(m, COL_TEXT);
-  RECT v1 = {120, 110, 320, 132};
-  RECT v2 = {120, 138, 320, 160};
-  DrawTextW(m, inst ? loc : L"—", -1, &v1, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
-  DrawTextW(m, rem, -1, &v2, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+  RECT v1 = {24, 136, 160, 162};
+  RECT v2 = {168, 136, 360, 162};
+  DrawTextW(m, inst ? loc : L"-", -1, &v1, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+  DrawTextW(m, rem[0] ? rem : L"-", -1, &v2, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 
-  RECT chip = {330, 138, 480, 160};
-  COLORREF chipBg = COL_BTN, chipTx = COL_MUTED, chipBd = COL_LINE;
-  const wchar_t *chipT = L"git";
-  if (rk.kind == L'p') {
-    chipBg = RGB(56, 16, 22);
-    chipTx = RGB(255, 196, 200);
-    chipBd = RGB(224, 36, 58);
-    chipT = L"patch";
-  } else if (rk.kind == L'r') {
-    chipBg = RGB(48, 20, 36);
-    chipTx = RGB(255, 208, 228);
-    chipBd = COL_ACCENT;
-    chipT = L"release";
-  } else if (state == ST_DONE) {
-    chipT = L"current";
-  }
-  round_rect(m, chip, 12, chipBg, chipBd);
-  SetTextColor(m, chipTx);
   SelectObject(m, fS);
-  DrawTextW(m, chipT, -1, &chip, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
-
-  SelectObject(m, fB);
   SetTextColor(m, RGB(200, 200, 208));
-  RECT sr = {20, 180, 480, 250};
+  RECT sr = {24, 178, 536, 236};
   DrawTextW(m, st, -1, &sr, DT_LEFT | DT_TOP | DT_WORDBREAK);
 
-  round_rect(m, rBar, 8, RGB(26, 26, 31), COL_LINE);
-  int span = rBar.right - rBar.left;
+  round_rect(m, rPill, 52, RGB(74, 21, 32), RGB(42, 12, 18));
+  hatch_clip(m, rPill, 52);
+
+  RECT track = {rPill.left + 18, rPill.top + 22, rPill.right - 58, rPill.bottom - 22};
+  round_rect(m, track, 8, RGB(18, 10, 12), RGB(18, 10, 12));
+  int span = track.right - track.left;
   int fw = span * pct / 100;
   if (fw > 0) {
-    RECT fr = rBar;
+    RECT fr = track;
     fr.right = fr.left + fw;
-    if (fr.right > rBar.right) fr.right = rBar.right;
-    round_rect(m, fr, 8, COL_ACCENT, COL_ACCENT);
+    round_rect(m, fr, 8, RGB(255, 208, 228), RGB(255, 208, 228));
   }
+
+  RECT pctR = {rPill.right - 50, rPill.top + 8, rPill.right - 8, rPill.bottom - 8};
+  round_rect(m, pctR, 36, RGB(20, 12, 14), RGB(20, 12, 14));
   wchar_t pbuf[16];
   swprintf(pbuf, 16, L"%d%%", pct);
-  SetTextColor(m, COL_TEXT);
-  SelectObject(m, fS);
-  DrawTextW(m, pbuf, -1, (RECT *)&rBar, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+  SelectObject(m, fP);
+  SetTextColor(m, RGB(244, 233, 236));
+  DrawTextW(m, pbuf, -1, &pctR, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
 
   int canCheck = (state != ST_CHECK && state != ST_DOWN && state != ST_APPLY);
   int canDown = (state == ST_READY) || (!inst && state != ST_DOWN && state != ST_APPLY && state != ST_CHECK);
   COLORREF c1 = gHover == 1 ? RGB(40, 40, 48) : COL_BTN;
   COLORREF c2 = gHover == 2 ? RGB(214, 74, 138) : COL_ACCENT;
   if (!canCheck) c1 = RGB(24, 24, 28);
-  if (!canDown) c2 = RGB(70, 30, 48);
-  round_rect(m, rCheck, 12, c1, COL_LINE);
-  round_rect(m, rDown, 12, c2, c2);
+  if (!canDown) c2 = RGB(90, 36, 58);
+  round_rect(m, rCheck, 14, c1, COL_LINE);
+  round_rect(m, rDown, 14, c2, c2);
   SetTextColor(m, canCheck ? COL_TEXT : COL_MUTED);
   SelectObject(m, fB);
   DrawTextW(m, L"Check Update", -1, &rCheck, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
   SetTextColor(m, RGB(255, 255, 255));
   DrawTextW(m, L"Download", -1, &rDown, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
 
-  SelectObject(m, fM);
-  SetTextColor(m, RGB(109, 109, 118));
-  RECT ft = {20, 422, 480, 444};
+  SelectObject(m, fK);
+  SetTextColor(m, RGB(92, 92, 100));
+  RECT ft = {24, 464, 536, 484};
   DrawTextW(m, L"github.com/SelfC0de/Aura-Browser", -1, &ft, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 
   BitBlt(hdc, 0, 0, rc.right, rc.bottom, m, 0, 0, SRCCOPY);
   SelectObject(m, old);
   DeleteObject(bm);
   DeleteDC(m);
-  DeleteObject(fA);
-  DeleteObject(fT);
-  DeleteObject(fS);
+  DeleteObject(fWord);
+  DeleteObject(fSub);
+  DeleteObject(fK);
+  DeleteObject(fV);
   DeleteObject(fB);
-  DeleteObject(fM);
+  DeleteObject(fS);
+  DeleteObject(fP);
   EndPaint(hwnd, &ps);
 }
 
@@ -433,7 +440,7 @@ static int http_get(const wchar_t *host, const wchar_t *path, int download, cons
       int p = 0;
       if (total) p = (int)((got * 100) / total);
       if (p > 99) p = 99;
-      ui(L"Downloading release zip…", ST_DOWN, p);
+      ui(0, ST_DOWN, p);
     } else {
       DWORD need = used + rd + 1;
       if (need > cap) {
@@ -538,29 +545,32 @@ static int pick_release(const char *json) {
   gRemote = best;
   char want[64];
   WideCharToMultiByte(CP_UTF8, 0, gRemoteStr, -1, want, 64, 0, 0);
-  char url[1024];
+  char url[1024], bestUrl[1024];
+  bestUrl[0] = 0;
+  int bestScore = -1;
   const char *q = json;
   for (int i = 0; i < 80; i++) {
     if (!json_find_quoted(q, "browser_download_url", 0, url, 1024)) break;
     const char *pos = strstr(q, "\"browser_download_url\"");
     if (!pos) break;
-    if (strstr(url, ".zip") && (strstr(url, want) || strstr(url, "Aura"))) {
-      MultiByteToWideChar(CP_UTF8, 0, url, -1, gUrl, 1024);
-      return 1;
-    }
     q = pos + 22;
-  }
-  q = json;
-  for (int i = 0; i < 80; i++) {
-    if (!json_find_quoted(q, "browser_download_url", 0, url, 1024)) break;
-    const char *pos = strstr(q, "\"browser_download_url\"");
-    if (!pos) break;
-    if (strstr(url, ".zip")) {
-      MultiByteToWideChar(CP_UTF8, 0, url, -1, gUrl, 1024);
-      return 1;
+    if (!strstr(url, ".zip")) continue;
+    if (!strstr(url, want) && !strstr(url, "Aura")) continue;
+    int files = (strstr(url, "-files.zip") || strstr(url, "-patch.zip")) ? 1 : 0;
+    int full = (strstr(url, "-win64.zip") || strstr(url, "-full.zip")) ? 1 : 0;
+    int score;
+    if (gInstalled)
+      score = files ? 4 : (full ? 2 : 1);
+    else
+      score = files ? 1 : (full ? 4 : 2);
+    if (score > bestScore) {
+      bestScore = score;
+      strncpy(bestUrl, url, 1023);
+      bestUrl[1023] = 0;
     }
-    q = pos + 22;
   }
+  if (bestUrl[0])
+    MultiByteToWideChar(CP_UTF8, 0, bestUrl, -1, gUrl, 1024);
   return 1;
 }
 
@@ -611,7 +621,7 @@ static DWORD WINAPI th_check(LPVOID) {
   }
   wchar_t msg[400];
   if (!gInstalled) {
-    swprintf(msg, 400, L"Payload %s — Download unpacks next to AuraLauncher.exe (AuraBrowser.exe + engine). data\\ is created on first run.", gRemoteStr);
+    swprintf(msg, 400, L"Payload %s. Download unpacks next to AuraLauncher.exe (AuraBrowser.exe + engine). data\\ is created on first run.", gRemoteStr);
     ui(msg, ST_READY, 0);
   } else if (gRemote.kind == L'p') {
     swprintf(msg, 400, L"Mandatory patch %s. Download replaces files next to AuraBrowser.exe. Profile data\\ is kept.", gRemoteStr);
@@ -791,7 +801,10 @@ static DWORD WINAPI th_down(LPVOID) {
   wcsncpy(host, p, 159);
   host[sl - p] = 0;
   wcsncpy(path, sl, 859);
-  ui(L"Downloading release zip…", ST_DOWN, 0);
+  if (wcsstr(gUrl, L"-files.zip") || wcsstr(gUrl, L"-patch.zip"))
+    ui(L"Downloading Aura files only (engine stays).", ST_DOWN, 0);
+  else
+    ui(L"Downloading release zip…", ST_DOWN, 0);
   if (!http_get(host, path, 1, zip)) {
     ui(L"Download failed.", ST_ERR, gPct);
     return 0;
@@ -839,6 +852,12 @@ static LRESULT CALLBACK wnd(HWND hwnd, UINT m, WPARAM w, LPARAM l) {
     gHover = 0;
     InvalidateRect(hwnd, 0, FALSE);
     return 0;
+  case WM_LBUTTONDOWN: {
+    int x = GET_X_LPARAM(l), y = GET_Y_LPARAM(l);
+    if (!hit(rClose, x, y) && !hit(rCheck, x, y) && !hit(rDown, x, y) && !hit(rPill, x, y))
+      SendMessageW(hwnd, WM_NCLBUTTONDOWN, HTCAPTION, 0);
+    return 0;
+  }
   case WM_LBUTTONUP: {
     int x = GET_X_LPARAM(l), y = GET_Y_LPARAM(l);
     if (hit(rClose, x, y)) {
@@ -871,7 +890,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR cmd, int) {
   read_local();
   gInstalled = installed();
   if (!gInstalled)
-    wcsncpy(gStatus, L"Aura is not in this folder. Check Update, then Download — files unpack next to this exe.", 399);
+    wcsncpy(gStatus, L"Aura is not in this folder. Check Update, then Download - files unpack next to this exe.", 399);
 
   if (cmd && wcsstr(cmd, L"--update")) gAuto = 1;
 
@@ -886,11 +905,11 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR cmd, int) {
   RegisterClassW(&wc);
 
   int sw = GetSystemMetrics(SM_CXSCREEN), sh = GetSystemMetrics(SM_CYSCREEN);
-  int x = (sw - 500) / 2, y = (sh - 450) / 2;
+  int x = (sw - 560) / 2, y = (sh - 500) / 2;
   HWND hwnd = CreateWindowExW(
       WS_EX_APPWINDOW, L"AuraSetup", L"Aura",
       WS_POPUP | WS_VISIBLE,
-      x, y, 500, 450, 0, 0, inst, 0);
+      x, y, 560, 500, 0, 0, inst, 0);
   gHwnd = hwnd;
   ShowWindow(hwnd, SW_SHOWNORMAL);
   UpdateWindow(hwnd);
