@@ -724,32 +724,51 @@ static int download_parallel(const wchar_t *outFile) {
   return 1;
 }
 
+static void rm_tree(const wchar_t *path) {
+  wchar_t sys[MAX_PATH], cm[MAX_PATH], args[900];
+  GetSystemDirectoryW(sys, MAX_PATH);
+  swprintf(cm, MAX_PATH, L"%s\\cmd.exe", sys);
+  swprintf(args, 900, L"/c rmdir /s /q \"%s\"", path);
+  run_cmd(cm, args, 0);
+}
+
+static void uninstall_browser(void) {
+  wchar_t p[MAX_PATH];
+  kill_engine();
+  Sleep(300);
+  join(p, MAX_PATH, gRoot, L"engine");
+  rm_tree(p);
+  join(p, MAX_PATH, gRoot, L"data");
+  rm_tree(p);
+  join(p, MAX_PATH, gRoot, L"updates");
+  rm_tree(p);
+  join(p, MAX_PATH, gRoot, L"AuraBrowser.exe");
+  DeleteFileW(p);
+  join(p, MAX_PATH, gRoot, L"version.txt");
+  DeleteFileW(p);
+  join(p, MAX_PATH, gRoot, L"Aura.png");
+  DeleteFileW(p);
+  join(p, MAX_PATH, gRoot, L"aura-payload.zip");
+  DeleteFileW(p);
+  gInstalled = 0;
+  gLocal.a = gLocal.b = gLocal.c = gLocal.d = 0;
+  gLocal.kind = 0;
+  wcsncpy(gLocalStr, L"-", 63);
+  wcsncpy(gRemoteStr, L"-", 63);
+}
+
 static void do_uninstall(HWND hwnd) {
   if (!gInstalled) {
     ui(L"Nothing to uninstall.", ST_IDLE, 0);
     return;
   }
-  if (MessageBoxW(hwnd, L"Delete Aura from this folder, including profile data\\?", L"Aura",
-                  MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2) != IDYES)
+  if (MessageBoxW(hwnd,
+                  L"Remove the browser and profile from this folder?\n\nAuraLauncher.exe and src\\ stay.",
+                  L"Aura", MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2) != IDYES)
     return;
-  kill_engine();
-  wchar_t self[MAX_PATH], tmp[MAX_PATH], wipe[MAX_PATH], cmdl[1200];
-  GetModuleFileNameW(0, self, MAX_PATH);
-  GetTempPathW(MAX_PATH, tmp);
-  swprintf(wipe, MAX_PATH, L"%sAuraWipe.exe", tmp);
-  CopyFileW(self, wipe, FALSE);
-  swprintf(cmdl, 1200, L"\"%s\" --wipe \"%s\"", wipe, gRoot);
-  STARTUPINFOW si;
-  PROCESS_INFORMATION pi;
-  ZeroMemory(&si, sizeof(si));
-  si.cb = sizeof(si);
-  ZeroMemory(&pi, sizeof(pi));
-  if (CreateProcessW(wipe, cmdl, 0, 0, FALSE, 0, 0, tmp, &si, &pi)) {
-    CloseHandle(pi.hThread);
-    CloseHandle(pi.hProcess);
-    DestroyWindow(hwnd);
-  } else
-    ui(L"Could not start uninstall.", ST_ERR, 0);
+  uninstall_browser();
+  gInstalled = installed();
+  ui(L"Browser removed. Launcher is still here — Download to install again.", ST_IDLE, 0);
 }
 
 static int json_find_quoted(const char *json, const char *key, int nth, char *out, int n) {
@@ -1382,31 +1401,6 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR cmd, int) {
   wchar_t *sl = wcsrchr(mod, L'\\');
   if (sl) *sl = 0;
   wcsncpy(gRoot, mod, MAX_PATH);
-  if (cmd && wcsstr(cmd, L"--wipe")) {
-    wchar_t *p = wcsstr(cmd, L"--wipe") + 6;
-    while (*p == L' ') p++;
-    if (*p == L'"') p++;
-    wchar_t dir[MAX_PATH];
-    wcsncpy(dir, p, MAX_PATH - 1);
-    dir[MAX_PATH - 1] = 0;
-    wchar_t *q = wcschr(dir, L'"');
-    if (q) *q = 0;
-    if (wcslen(dir) > 8) wcsncpy(gRoot, dir, MAX_PATH);
-    wchar_t probe[MAX_PATH];
-    join(probe, MAX_PATH, gRoot, L"engine\\AuraBrowser.exe");
-    if (exists(probe) || exists(gRoot)) {
-      Sleep(800);
-      kill_engine();
-      Sleep(400);
-      wchar_t sys[MAX_PATH], cm[MAX_PATH], args[900];
-      GetSystemDirectoryW(sys, MAX_PATH);
-      swprintf(cm, MAX_PATH, L"%s\\cmd.exe", sys);
-      swprintf(args, 900, L"/c rmdir /s /q \"%s\"", gRoot);
-      run_cmd(cm, args, 0);
-    }
-    DeleteCriticalSection(&gCs);
-    return 0;
-  }
   read_local();
   gInstalled = installed();
   if (cmd && wcsstr(cmd, L"--silent")) {
