@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="color-scheme" content="dark">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https:; connect-src 'none'; form-action https://duckduckgo.com; frame-ancestors 'none'; base-uri 'self'; object-src 'none'">
+  <title>Aura</title>
+  <link rel="stylesheet" href="welcome.css">
+</head>
+<body class="tab hud" data-scene="void" data-aurora="1" data-bg="0" data-bg-mode="cover">
+  <div class="bg-photo" id="bg-photo" aria-hidden="true"></div>
+  <div class="bg-aurora" aria-hidden="true"></div>
+  <div class="hud-stage">
+    <div class="brand">
+      <h1 class="aura-word">
+        <svg viewBox="0 0 560 180" width="560" height="180" role="img" aria-label="Aura">
+          <defs>
+            <linearGradient id="auraGrad" gradientUnits="userSpaceOnUse" x1="40" y1="20" x2="280" y2="160" spreadMethod="pad">
+              <stop offset="0" stop-color="#ff8ab4"/>
+              <stop offset="0.28" stop-color="#f04a86"/>
+              <stop offset="0.55" stop-color="#c43a78"/>
+              <stop offset="0.78" stop-color="#8a2bb8"/>
+              <stop offset="1" stop-color="#5b1d96"/>
+            </linearGradient>
+            <linearGradient id="auraFlow" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="220" y2="0" spreadMethod="repeat">
+              <stop offset="0" stop-color="#ffd0e4" stop-opacity="0"/>
+              <stop offset="0.45" stop-color="#ffd0e4" stop-opacity="0.55"/>
+              <stop offset="1" stop-color="#ffd0e4" stop-opacity="0"/>
+              <animate attributeName="x1" values="-220;340" dur="4.2s" repeatCount="indefinite"/>
+              <animate attributeName="x2" values="0;560" dur="4.2s" repeatCount="indefinite"/>
+            </linearGradient>
+            <linearGradient id="auraSheen" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#ffffff" stop-opacity="0.42"/>
+              <stop offset="0.38" stop-color="#ffffff" stop-opacity="0"/>
+            </linearGradient>
+            <filter id="auraGlow" x="-25%" y="-30%" width="150%" height="180%">
+              <feDropShadow dx="0" dy="10" stdDeviation="16" flood-color="#c43a78" flood-opacity="0.55"/>
+            </filter>
+          </defs>
+          <text x="280" y="138" text-anchor="middle" font-size="138" font-weight="780" font-family="Segoe UI Variable Display, Segoe UI Variable, Segoe UI, sans-serif" fill="url(#auraGrad)" letter-spacing="-7.5" filter="url(#auraGlow)">Aura</text>
+          <text class="aura-flow" x="280" y="138" text-anchor="middle" font-size="138" font-weight="780" font-family="Segoe UI Variable Display, Segoe UI Variable, Segoe UI, sans-serif" fill="url(#auraFlow)" letter-spacing="-7.5">Aura</text>
+          <text x="280" y="138" text-anchor="middle" font-size="138" font-weight="780" font-family="Segoe UI Variable Display, Segoe UI Variable, Segoe UI, sans-serif" fill="url(#auraSheen)" letter-spacing="-7.5">Aura</text>
+        </svg>
+      </h1>
+    </div>
+    <form class="search" action="https://duckduckgo.com/" method="get" referrerpolicy="no-referrer">
+      <span class="search-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="6.5"/>
+          <path d="M16.2 16.2 20 20"/>
+        </svg>
+      </span>
+      <input type="search" name="q" placeholder="Поиск или адрес" autofocus autocomplete="off" spellcheck="false" inputmode="search">
+      <button type="submit" aria-label="Найти">
+        <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 8h10"/>
+          <path d="m9 4 4 4-4 4"/>
+        </svg>
+      </button>
+    </form>
+    <div id="pins" class="pins" aria-label="Закреплённые сайты"></div>
+  </div>
+  <footer class="dev">
+    <span>SelfCode</span>
+    <nav>
+      <a href="https://vk.com/selfcode_dev" rel="noreferrer noopener">VK</a>
+      <a href="https://t.me/selfcode_dev" rel="noreferrer noopener">TG</a>
+      <a href="https://github.com/SelfC0de" rel="noreferrer noopener">GH</a>
+    </nav>
+  </footer>
+  <div class="scenes" id="scenes" title="Сцена">
+    <button type="button" data-scene="void" aria-label="Void"></button>
+    <button type="button" data-scene="neon" aria-label="Neon"></button>
+    <button type="button" data-scene="ember" aria-label="Ember"></button>
+  </div>
+  <div id="cmd" class="cmd" hidden>
+    <button type="button" data-act="pin">Новый пин</button>
+    <button type="button" data-act="reset-bg">Сбросить фон</button>
+    <button type="button" data-act="settings">Настройки</button>
+  </div>
+  <div id="sheet" class="sheet" hidden>
+    <div class="sheet-card">
+      <header>
+        <span>Стартовая</span>
+        <button type="button" class="sheet-x" id="sheet-x" aria-label="Закрыть">×</button>
+      </header>
+      <label class="row">
+        <span>Aurora-фон</span>
+        <input type="checkbox" id="opt-aurora">
+      </label>
+      <div class="row col">
+        <span>Сцена</span>
+        <div class="seg" id="opt-scene">
+          <button type="button" data-scene="void">Void</button>
+          <button type="button" data-scene="neon">Neon</button>
+          <button type="button" data-scene="ember">Ember</button>
+        </div>
+      </div>
+      <div class="row col">
+        <span>Своя картинка</span>
+        <div class="bg-actions">
+          <button type="button" id="opt-bg-pick">Выбрать файл</button>
+          <button type="button" id="opt-bg-clear">Убрать</button>
+        </div>
+      </div>
+      <div class="row col">
+        <span>Как класть</span>
+        <div class="seg" id="opt-bg-mode">
+          <button type="button" data-mode="cover">Растянуть</button>
+          <button type="button" data-mode="repeat">Замостить</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <input id="bg-file" type="file" accept="image/*" hidden>
+  <script src="welcome.js" defer></script>
+</body>
+</html>

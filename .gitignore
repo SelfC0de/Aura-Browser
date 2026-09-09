@@ -1,0 +1,14 @@
+data/
+updates/
+*.zip
+*.obj
+*.res
+*.pdb
+engine/*.dll
+engine/*.exe
+engine/omni.ja
+engine/browser/omni.ja
+src/gh-page/
+src/audit-runs/
+src/_dist/
+AuraSetup-*.exe

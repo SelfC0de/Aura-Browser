@@ -1,0 +1,26 @@
+category app-startup MainProcessSingleton @mozilla.org/main-process-singleton;1 process=main
+category android-push-service PushServiceParent @mozilla.org/push/Service;1 process=main
+resource services-sync resource://gre/modules/services-sync/
+category profile-after-change TelemetryStartup @mozilla.org/base/telemetry-startup;1 process=main
+category profile-after-change URLDecorationAnnotationsService @mozilla.org/tracking-url-decoration-service;1 process=main
+category webextension-modules toolkit chrome://extensions/content/ext-toolkit.json
+category webextension-scripts a-toolkit chrome://extensions/content/parent/ext-toolkit.js
+category webextension-scripts b-tabs-base chrome://extensions/content/parent/ext-tabs-base.js
+category webextension-scripts-content toolkit chrome://extensions/content/child/ext-toolkit.js
+category webextension-scripts-devtools toolkit chrome://extensions/content/child/ext-toolkit.js
+category webextension-scripts-addon toolkit chrome://extensions/content/child/ext-toolkit.js
+category webextension-schemas events chrome://extensions/content/schemas/events.json
+category webextension-schemas native_manifest chrome://extensions/content/schemas/native_manifest.json
+category webextension-schemas types chrome://extensions/content/schemas/types.json
+category update-timer amGleanDaily @mozilla.org/addons/glean-daily-ping;1,getService,glean-addons-daily,extensions.gleanPingAddons.daily.interval,86400
+category update-timer addonManager @mozilla.org/addons/integration;1,getService,addon-background-update-timer,extensions.update.interval,86400
+category addon-provider-module GMPProvider resource://gre/modules/addons/GMPProvider.sys.mjs
+category addon-provider-module ModelHubProvider resource://gre/modules/addons/ModelHubProvider.sys.mjs
+category addon-provider-module SitePermsAddonProvider resource://gre/modules/addons/SitePermsAddonProvider.sys.mjs
+category l10n-registry 0-toolkit resource://gre/localization/{locale}/ backgroundtask=0
+category l10n-registry 0-toolkit resource://gre/localization/{locale}/ backgroundtask=1
+category update-timer nsUpdateService @mozilla.org/updates/update-service;1,getService,background-update-timer,app.update.interval,21600,86400
+resource services-common resource://gre/modules/services-common/
+resource services-settings resource://gre/modules/services-settings/
+category update-timer RemoteSettingsComponents @mozilla.org/services/settings;1,getService,services-settings-poll-changes,services.settings.poll_interval,21600,86400
+category profile-after-change nsTerminator @mozilla.org/toolkit/shutdown-terminator;1

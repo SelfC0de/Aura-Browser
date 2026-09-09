@@ -1,0 +1,27 @@
+#include <winuser.h>
+IDI_ICON1 ICON "Aura.ico"
+
+1 VERSIONINFO
+FILEVERSION 0,0,0,0
+PRODUCTVERSION 0,0,0,0
+FILEOS 0x40004
+FILETYPE 0x1
+BEGIN
+  BLOCK "StringFileInfo"
+  BEGIN
+    BLOCK "040904b0"
+    BEGIN
+      VALUE "CompanyName", "SelfCode"
+      VALUE "FileDescription", "Aura Setup"
+      VALUE "InternalName", "AuraLauncher"
+      VALUE "LegalCopyright", "SelfCode"
+      VALUE "OriginalFilename", "AuraLauncher.exe"
+      VALUE "ProductName", "Aura"
+      VALUE "ProductVersion", "0.0.0.0"
+    END
+  END
+  BLOCK "VarFileInfo"
+  BEGIN
+    VALUE "Translation", 0x409, 1200
+  END
+END

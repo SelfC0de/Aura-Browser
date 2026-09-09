@@ -12,11 +12,13 @@
 
 ## English
 
-Portable privacy browser for Windows. No telemetry. No Mozilla services.
+Chrome, Yandex and VK browsers report home. Stock Firefox talks to Mozilla. Hardened forks that fake the UA or turn on RFP break Gosuslugi, Sber and VK.
+
+**Aura** is a portable Windows daily driver on Gecko ESR 153: real Firefox 153 UA, Mozilla outbound cut, tracking and fingerprinting on, passwords behind a master key.
+
+Source of the Aura layer is in this repo. Gecko binaries ship in **Releases**, not in git.
 
 ### Protection
-
-Mozilla outbound is cut: no telemetry, no accounts, no AMO, no Safe Browsing.
 
 | | |
 |:---|:---|
@@ -29,30 +31,33 @@ Mozilla outbound is cut: no telemetry, no accounts, no AMO, no Safe Browsing.
 | Process | content sandbox 9, web add-on install off |
 | Vault | master password required, autolock 30s |
 
+Aura is not Tor and not a VPN. It does not spoof the UA. It does not send telemetry to SelfCode. The only extra request is a GitHub Releases check for updates.
+
+### Verify
+
+| claim | file |
+| --- | --- |
+| telemetry / Mozilla URLs off | [`config/aura.cfg`](config/aura.cfg) |
+| FPP, TRR, cookies, ETP | [`config/user.js`](config/user.js) |
+| enterprise policy | [`config/policies.json`](config/policies.json) |
+| tracker filters | [`config/filters/aura-2026.txt`](config/filters/aura-2026.txt) |
+| vault + 30s lock | [`welcome/aura-vault.js`](welcome/aura-vault.js) |
+| scheme / chrome hardening | [`welcome/aura-ui.js`](welcome/aura-ui.js) |
+| installer / updater | [`src/AuraLauncher.cpp`](src/AuraLauncher.cpp) |
+| portable stub | [`src/AuraBrowser.cpp`](src/AuraBrowser.cpp) |
+
 ### Install
 
-Download the latest **Release**. Run `AuraLauncher.exe`.
-
-Files unpack **next to** `AuraBrowser.exe`:
-
-```
-AuraLauncher.exe
-AuraBrowser.exe
-version.txt
-engine\
-data\          ← profile, never overwritten
-```
+Download the latest **Release**. Run `AuraLauncher.exe`. Files unpack next to `AuraBrowser.exe`. `data\` is the profile and is never overwritten.
 
 ### Updates
-
-Releases of this repo. The browser checks GitHub and shows a toast; apply in the launcher.
 
 | tag | |
 | --- | --- |
 | `v0.0.0.1r` | release |
 | `v0.0.0.1p` | mandatory patch |
 
-Version on disk: `version.txt` (`0.0.0.0` now).
+On-disk version: `version.txt` (`0.0.0.0` now). The browser toasts; apply in the launcher.
 
 SelfCode · [VK](https://vk.com/selfcode_dev) · [Telegram](https://t.me/selfcode_dev)
 
@@ -62,11 +67,13 @@ SelfCode · [VK](https://vk.com/selfcode_dev) · [Telegram](https://t.me/selfcod
 
 ## Русский
 
-Портативный приватный браузер для Windows. Без телеметрии. Без сервисов Mozilla.
+Chrome, Яндекс и VK-браузеры стучат вендору. Обычный Firefox — Mozilla. Жёсткие форки с поддельным UA или RFP ломают Госуслуги, Сбер и VK.
+
+**Aura** — портативный ежедневный браузер на Gecko ESR 153: живой UA Firefox 153, без исходящих Mozilla, с трекингом и отпечатком под контролем, пароли за мастер-ключом.
+
+Исходники слоя Aura — в этом репозитории. Бинарники Gecko — в **Releases**, не в git.
 
 ### Защита
-
-Исходящие Mozilla срезаны: нет телеметрии, аккаунтов, AMO, Safe Browsing.
 
 | | |
 |:---|:---|
@@ -79,30 +86,33 @@ SelfCode · [VK](https://vk.com/selfcode_dev) · [Telegram](https://t.me/selfcod
 | Процесс | sandbox контента 9, установка аддонов с веба выключена |
 | Хранилище | мастер-пароль обязателен, автолок 30 с |
 
+Это не Tor и не VPN. UA не подменяется. Телеметрии на SelfCode нет. Единственный лишний запрос — проверка релизов на GitHub.
+
+### Проверка
+
+| утверждение | файл |
+| --- | --- |
+| телеметрия / URL Mozilla выключены | [`config/aura.cfg`](config/aura.cfg) |
+| FPP, TRR, cookies, ETP | [`config/user.js`](config/user.js) |
+| политика | [`config/policies.json`](config/policies.json) |
+| фильтры трекеров | [`config/filters/aura-2026.txt`](config/filters/aura-2026.txt) |
+| хранилище + лок 30 с | [`welcome/aura-vault.js`](welcome/aura-vault.js) |
+| схемы / chrome | [`welcome/aura-ui.js`](welcome/aura-ui.js) |
+| установщик | [`src/AuraLauncher.cpp`](src/AuraLauncher.cpp) |
+| portable stub | [`src/AuraBrowser.cpp`](src/AuraBrowser.cpp) |
+
 ### Установка
 
-Скачай последний **Release**. Запусти `AuraLauncher.exe`.
-
-Файлы распакуются **рядом** с `AuraBrowser.exe`:
-
-```
-AuraLauncher.exe
-AuraBrowser.exe
-version.txt
-engine\
-data\          ← профиль, zip его не трогает
-```
+Скачай последний **Release**. Запусти `AuraLauncher.exe`. Файлы рядом с `AuraBrowser.exe`. `data\` — профиль, zip его не трогает.
 
 ### Обновления
-
-Релизы этого репозитория. Браузер сам проверяет GitHub и показывает тост; ставится через лаунчер.
 
 | тег | |
 | --- | --- |
 | `v0.0.0.1r` | релиз |
 | `v0.0.0.1p` | обязательный патч |
 
-Версия на диске: `version.txt` (сейчас `0.0.0.0`).
+Версия на диске: `version.txt` (сейчас `0.0.0.0`). Тост в браузере, установка через лаунчер.
 
 SelfCode · [VK](https://vk.com/selfcode_dev) · [Telegram](https://t.me/selfcode_dev)
 
