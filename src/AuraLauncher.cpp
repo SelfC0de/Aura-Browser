@@ -379,11 +379,31 @@ static void kill_browser() {
   Sleep(400);
 }
 
+static DWORD gHttpStatus = 0;
+static DWORD gHttpErr = 0;
+
 static int http_get(const wchar_t *host, const wchar_t *path, int download, const wchar_t *outFile) {
-  HINTERNET s = WinHttpOpen(L"AuraLauncher/0.0.0.0", WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, 0, 0, 0);
-  if (!s) return 0;
+  gHttpStatus = 0;
+  gHttpErr = 0;
+  HINTERNET s = WinHttpOpen(L"AuraLauncher/0.0.0.1r", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, 0, 0, 0);
+  if (!s) s = WinHttpOpen(L"AuraLauncher/0.0.0.1r", WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, 0, 0, 0);
+  if (!s) s = WinHttpOpen(L"AuraLauncher/0.0.0.1r", WINHTTP_ACCESS_TYPE_NO_PROXY, 0, 0, 0);
+  if (!s) {
+    gHttpErr = GetLastError();
+    return 0;
+  }
+  DWORD proto = WINHTTP_FLAG_SECURE_PROTOCOL_TLS1 |
+                WINHTTP_FLAG_SECURE_PROTOCOL_TLS1_1 |
+                WINHTTP_FLAG_SECURE_PROTOCOL_TLS1_2;
+#ifdef WINHTTP_FLAG_SECURE_PROTOCOL_TLS1_3
+  proto |= WINHTTP_FLAG_SECURE_PROTOCOL_TLS1_3;
+#else
+  proto |= 0x00002000;
+#endif
+  WinHttpSetOption(s, WINHTTP_OPTION_SECURE_PROTOCOLS, &proto, sizeof(proto));
   DWORD redir = WINHTTP_OPTION_REDIRECT_POLICY_ALWAYS;
   WinHttpSetOption(s, WINHTTP_OPTION_REDIRECT_POLICY, &redir, sizeof(redir));
+  WinHttpSetTimeouts(s, 20000, 20000, 20000, 60000);
   HINTERNET c = WinHttpConnect(s, host, INTERNET_DEFAULT_HTTPS_PORT, 0);
   if (!c) {
     WinHttpCloseHandle(s);
@@ -395,7 +415,7 @@ static int http_get(const wchar_t *host, const wchar_t *path, int download, cons
     WinHttpCloseHandle(s);
     return 0;
   }
-  WinHttpAddRequestHeaders(r, L"Accept: application/vnd.github+json\r\nUser-Agent: AuraLauncher/0.0.0.0", (ULONG)-1, WINHTTP_ADDREQ_FLAG_ADD);
+  WinHttpAddRequestHeaders(r, L"User-Agent: AuraLauncher/0.0.0.1r", (ULONG)-1, WINHTTP_ADDREQ_FLAG_ADD);
   if (!WinHttpSendRequest(r, 0, 0, 0, 0, 0, 0) || !WinHttpReceiveResponse(r, 0)) {
     WinHttpCloseHandle(r);
     WinHttpCloseHandle(c);
@@ -466,8 +486,11 @@ static int http_get(const wchar_t *host, const wchar_t *path, int download, cons
   if (download) {
     CloseHandle(hf);
     ok = (status >= 200 && status < 300 && got > 0);
-    if (ok) ui(L"Download complete.", ST_DOWN, 100);
+    gHttpStatus = status;
+    if (!ok) gHttpErr = GetLastError();
+    if (ok && gState == ST_DOWN) ui(L"Download complete.", ST_DOWN, 100);
   } else {
+    gHttpStatus = status;
     if (mem && status >= 200 && status < 400) {
       mem[used] = 0;
       /* stash in gErr-sized? write to temp file json */
@@ -604,21 +627,27 @@ static void write_applied(const wchar_t *sha) {
 }
 
 static int parse_sha_json(const char *json, wchar_t *out, int n) {
-  const char *p = strstr(json, "\"sha\"");
+  const char *p = strstr(json, "/commit/");
+  if (!p) p = strstr(json, "\"sha\"");
   if (!p) return 0;
-  p = strchr(p, ':');
-  if (!p) return 0;
-  p++;
-  while (*p == ' ' || *p == '"') p++;
+  if (p[1] == 's') {
+    p = strchr(p, ':');
+    if (!p) return 0;
+    p++;
+    while (*p == ' ' || *p == '"') p++;
+  } else {
+    p += 8;
+  }
   wchar_t tmp[80];
   int i = 0;
-  while (*p && *p != '"' && i < 79) {
+  while (((*p >= '0' && *p <= '9') || (*p >= 'a' && *p <= 'f') || (*p >= 'A' && *p <= 'F')) && i < 79) {
     tmp[i++] = (wchar_t)(unsigned char)*p++;
   }
   tmp[i] = 0;
+  if (i < 7) return 0;
   wcsncpy(out, tmp, n - 1);
   out[n - 1] = 0;
-  return i >= 7;
+  return 1;
 }
 
 static int robocopy_dir(const wchar_t *src, const wchar_t *dst) {
@@ -782,7 +811,8 @@ static int check_git_main() {
   join(cpath, MAX_PATH, upd, L"commit.json");
   join(vpath, MAX_PATH, upd, L"remote-version.txt");
   ui(L"Checking GitHub main…", ST_CHECK, gPct);
-  if (!http_get(L"api.github.com", L"/repos/SelfC0de/Aura-Browser/commits/main", 1, cpath))
+  if (!http_get(L"github.com", L"/SelfC0de/Aura-Browser/commits/main.atom", 1, cpath) &&
+      !http_get(L"api.github.com", L"/repos/SelfC0de/Aura-Browser/commits/main", 1, cpath))
     return 0;
   FILE *f = _wfopen(cpath, L"rb");
   if (!f) return 0;
@@ -840,6 +870,10 @@ static DWORD WINAPI th_check(LPVOID) {
   gSha[0] = 0;
   if (gInstalled) {
     if (check_git_main()) return 0;
+    if (gHttpStatus == 403) {
+      ui(L"GitHub rate limit. Check again in a few minutes.", ST_ERR, 0);
+      return 0;
+    }
     ui(L"GitHub main unreachable, checking Releases…", ST_CHECK, gPct);
   }
   ui(L"Checking GitHub releases…", ST_CHECK, gPct);
@@ -847,7 +881,13 @@ static DWORD WINAPI th_check(LPVOID) {
   join(upd, MAX_PATH, gRoot, L"updates");
   CreateDirectoryW(upd, 0);
   if (!http_get(L"api.github.com", L"/repos/SelfC0de/Aura-Browser/releases?per_page=20", 0, 0)) {
-    ui(L"GitHub unreachable. Publish a release at SelfC0de/Aura-Browser.", ST_ERR, 0);
+    wchar_t msg[240];
+    if (gHttpStatus == 403)
+      ui(L"GitHub rate limit. Check again in a few minutes.", ST_ERR, 0);
+    else {
+      swprintf(msg, 240, L"GitHub check failed (HTTP %lu, err %lu).", gHttpStatus, gHttpErr);
+      ui(msg, ST_ERR, 0);
+    }
     return 0;
   }
   wchar_t jp[MAX_PATH];
