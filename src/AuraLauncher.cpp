@@ -65,6 +65,11 @@ static RECT rCheck = {24, 402, 268, 450};
 static RECT rDown = {278, 402, 536, 450};
 static RECT rPill = {24, 250, 536, 302};
 static RECT rClose = {504, 18, 536, 50};
+static RECT rUninst = {400, 464, 536, 484};
+
+#define ZIP_HOST L"github.com"
+#define ZIP_PATH L"/SelfC0de/Aura-Browser/releases/latest/download/Aura-win64.zip"
+#define DL_PARTS 8
 
 static void ui(const wchar_t *st, int state, int pct) {
   EnterCriticalSection(&gCs);
@@ -336,8 +341,10 @@ static void paint(HWND hwnd) {
 
   SelectObject(m, fK);
   SetTextColor(m, RGB(92, 92, 100));
-  RECT ft = {24, 464, 536, 484};
+  RECT ft = {24, 464, 380, 484};
   DrawTextW(m, L"github.com/SelfC0de/Aura-Browser", -1, &ft, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+  SetTextColor(m, gHover == 4 ? RGB(255, 138, 180) : RGB(92, 92, 100));
+  DrawTextW(m, L"Uninstall", -1, &rUninst, DT_RIGHT | DT_VCENTER | DT_SINGLELINE);
 
   BitBlt(hdc, 0, 0, rc.right, rc.bottom, m, 0, 0, SRCCOPY);
   SelectObject(m, old);
@@ -524,6 +531,236 @@ static int http_get(const wchar_t *host, const wchar_t *path, int download, cons
   WinHttpCloseHandle(c);
   WinHttpCloseHandle(s);
   return ok;
+}
+
+static HINTERNET http_sess(void) {
+  HINTERNET s = WinHttpOpen(L"AuraLauncher/0.0.0.1r", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, 0, 0, 0);
+  if (!s) s = WinHttpOpen(L"AuraLauncher/0.0.0.1r", WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, 0, 0, 0);
+  if (!s) s = WinHttpOpen(L"AuraLauncher/0.0.0.1r", WINHTTP_ACCESS_TYPE_NO_PROXY, 0, 0, 0);
+  if (!s) return 0;
+  DWORD proto = WINHTTP_FLAG_SECURE_PROTOCOL_TLS1 | WINHTTP_FLAG_SECURE_PROTOCOL_TLS1_1 |
+                WINHTTP_FLAG_SECURE_PROTOCOL_TLS1_2 | 0x00002000;
+  WinHttpSetOption(s, WINHTTP_OPTION_SECURE_PROTOCOLS, &proto, sizeof(proto));
+  DWORD redir = WINHTTP_OPTION_REDIRECT_POLICY_ALWAYS;
+  WinHttpSetOption(s, WINHTTP_OPTION_REDIRECT_POLICY, &redir, sizeof(redir));
+  WinHttpSetTimeouts(s, 20000, 20000, 20000, 120000);
+  return s;
+}
+
+static int crack_url(const wchar_t *url, wchar_t *host, int nh, wchar_t *path, int np) {
+  const wchar_t *p = url;
+  if (!wcsncmp(p, L"https://", 8)) p += 8;
+  else if (!wcsncmp(p, L"http://", 7)) p += 7;
+  const wchar_t *sl = wcschr(p, L'/');
+  if (!sl) return 0;
+  int hl = (int)(sl - p);
+  if (hl >= nh) hl = nh - 1;
+  wcsncpy(host, p, hl);
+  host[hl] = 0;
+  wcsncpy(path, sl, np - 1);
+  path[np - 1] = 0;
+  return 1;
+}
+
+static volatile LONGLONG gDlGot;
+static ULONGLONG gDlTotal;
+
+struct DlPart {
+  wchar_t host[192];
+  wchar_t path[900];
+  wchar_t dest[MAX_PATH];
+  ULONGLONG start, end;
+  int ok;
+};
+
+static DWORD WINAPI th_part(LPVOID arg) {
+  struct DlPart *p = (struct DlPart *)arg;
+  HINTERNET s = http_sess();
+  if (!s) return 0;
+  HINTERNET c = WinHttpConnect(s, p->host, INTERNET_DEFAULT_HTTPS_PORT, 0);
+  if (!c) {
+    WinHttpCloseHandle(s);
+    return 0;
+  }
+  HINTERNET r = WinHttpOpenRequest(c, L"GET", p->path, 0, 0, 0, WINHTTP_FLAG_SECURE);
+  if (!r) {
+    WinHttpCloseHandle(c);
+    WinHttpCloseHandle(s);
+    return 0;
+  }
+  wchar_t rng[80];
+  swprintf(rng, 80, L"Range: bytes=%llu-%llu", p->start, p->end);
+  WinHttpAddRequestHeaders(r, L"User-Agent: AuraLauncher/0.0.0.1r", (ULONG)-1, WINHTTP_ADDREQ_FLAG_ADD);
+  WinHttpAddRequestHeaders(r, rng, (ULONG)-1, WINHTTP_ADDREQ_FLAG_ADD);
+  if (!WinHttpSendRequest(r, 0, 0, 0, 0, 0, 0) || !WinHttpReceiveResponse(r, 0)) {
+    WinHttpCloseHandle(r);
+    WinHttpCloseHandle(c);
+    WinHttpCloseHandle(s);
+    return 0;
+  }
+  HANDLE hf = CreateFileW(p->dest, GENERIC_WRITE, FILE_SHARE_WRITE | FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
+  if (hf == INVALID_HANDLE_VALUE) {
+    WinHttpCloseHandle(r);
+    WinHttpCloseHandle(c);
+    WinHttpCloseHandle(s);
+    return 0;
+  }
+  LARGE_INTEGER li;
+  li.QuadPart = (LONGLONG)p->start;
+  SetFilePointerEx(hf, li, 0, FILE_BEGIN);
+  ULONGLONG need = p->end - p->start + 1;
+  ULONGLONG got = 0;
+  for (;;) {
+    DWORD avail = 0;
+    if (!WinHttpQueryDataAvailable(r, &avail) || !avail) break;
+    if (avail > 1 << 16) avail = 1 << 16;
+    char buf[1 << 16];
+    DWORD rd = 0;
+    if (!WinHttpReadData(r, buf, avail, &rd) || !rd) break;
+    DWORD wr = 0;
+    WriteFile(hf, buf, rd, &wr, 0);
+    got += rd;
+    InterlockedAdd64(&gDlGot, (LONGLONG)rd);
+    if (gDlTotal) {
+      int pct = (int)((gDlGot * 100) / (LONGLONG)gDlTotal);
+      if (pct > 99) pct = 99;
+      ui(0, ST_DOWN, pct);
+    }
+    if (got >= need) break;
+  }
+  CloseHandle(hf);
+  WinHttpCloseHandle(r);
+  WinHttpCloseHandle(c);
+  WinHttpCloseHandle(s);
+  p->ok = (got >= need);
+  return 0;
+}
+
+static int download_parallel(const wchar_t *outFile) {
+  HINTERNET s = http_sess();
+  if (!s) return 0;
+  HINTERNET c = WinHttpConnect(s, ZIP_HOST, INTERNET_DEFAULT_HTTPS_PORT, 0);
+  if (!c) {
+    WinHttpCloseHandle(s);
+    return 0;
+  }
+  HINTERNET r = WinHttpOpenRequest(c, L"GET", ZIP_PATH, 0, 0, 0, WINHTTP_FLAG_SECURE);
+  if (!r) {
+    WinHttpCloseHandle(c);
+    WinHttpCloseHandle(s);
+    return 0;
+  }
+  WinHttpAddRequestHeaders(r, L"User-Agent: AuraLauncher/0.0.0.1r", (ULONG)-1, WINHTTP_ADDREQ_FLAG_ADD);
+  WinHttpAddRequestHeaders(r, L"Range: bytes=0-0", (ULONG)-1, WINHTTP_ADDREQ_FLAG_ADD);
+  if (!WinHttpSendRequest(r, 0, 0, 0, 0, 0, 0) || !WinHttpReceiveResponse(r, 0)) {
+    WinHttpCloseHandle(r);
+    WinHttpCloseHandle(c);
+    WinHttpCloseHandle(s);
+    return 0;
+  }
+  DWORD status = 0, sl = sizeof(status);
+  WinHttpQueryHeaders(r, WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER, 0, &status, &sl, 0);
+  wchar_t cr[80];
+  DWORD crl = sizeof(cr);
+  ULONGLONG total = 0;
+  if (WinHttpQueryHeaders(r, WINHTTP_QUERY_CONTENT_RANGE, 0, cr, &crl, 0)) {
+    wchar_t *sls = wcsrchr(cr, L'/');
+    if (sls) total = _wcstoui64(sls + 1, 0, 10);
+  }
+  if (!total) {
+    wchar_t clbuf[32];
+    DWORD cll = sizeof(clbuf);
+    if (WinHttpQueryHeaders(r, WINHTTP_QUERY_CONTENT_LENGTH, 0, clbuf, &cll, 0))
+      total = _wcstoui64(clbuf, 0, 10);
+  }
+  wchar_t finalUrl[1024];
+  DWORD ul = sizeof(finalUrl);
+  if (!WinHttpQueryOption(r, WINHTTP_OPTION_URL, finalUrl, &ul))
+    wcsncpy(finalUrl, L"https://github.com/SelfC0de/Aura-Browser/releases/latest/download/Aura-win64.zip", 1023);
+  {
+    char dump[64];
+    DWORD rd = 0;
+    WinHttpReadData(r, dump, sizeof(dump), &rd);
+  }
+  WinHttpCloseHandle(r);
+  WinHttpCloseHandle(c);
+  WinHttpCloseHandle(s);
+  if (!total) {
+    ui(L"Downloading Aura…", ST_DOWN, 0);
+    return http_get(ZIP_HOST, ZIP_PATH, 1, outFile);
+  }
+  wchar_t host[192], path[900];
+  if (!crack_url(finalUrl, host, 192, path, 900)) {
+    wcsncpy(host, ZIP_HOST, 191);
+    wcsncpy(path, ZIP_PATH, 899);
+  }
+  HANDLE hf = CreateFileW(outFile, GENERIC_WRITE, FILE_SHARE_WRITE | FILE_SHARE_READ, 0, CREATE_ALWAYS, 0, 0);
+  if (hf == INVALID_HANDLE_VALUE) return 0;
+  LARGE_INTEGER sz;
+  sz.QuadPart = (LONGLONG)total;
+  SetFilePointerEx(hf, sz, 0, FILE_BEGIN);
+  SetEndOfFile(hf);
+  CloseHandle(hf);
+  gDlGot = 0;
+  gDlTotal = total;
+  int n = DL_PARTS;
+  ULONGLONG chunk = total / (ULONGLONG)n;
+  if (chunk < 1 << 20) {
+    n = 1;
+    chunk = total;
+  }
+  struct DlPart parts[DL_PARTS];
+  HANDLE th[DL_PARTS];
+  int i;
+  for (i = 0; i < n; i++) {
+    memset(&parts[i], 0, sizeof(parts[i]));
+    wcsncpy(parts[i].host, host, 191);
+    wcsncpy(parts[i].path, path, 899);
+    wcsncpy(parts[i].dest, outFile, MAX_PATH - 1);
+    parts[i].start = (ULONGLONG)i * chunk;
+    parts[i].end = (i == n - 1) ? (total - 1) : (parts[i].start + chunk - 1);
+    th[i] = CreateThread(0, 0, th_part, &parts[i], 0, 0);
+  }
+  WaitForMultipleObjects(n, th, TRUE, INFINITE);
+  int ok = 1;
+  for (i = 0; i < n; i++) {
+    if (th[i]) CloseHandle(th[i]);
+    if (!parts[i].ok) ok = 0;
+  }
+  if (!ok) {
+    ui(L"Parallel download failed, retrying one stream…", ST_DOWN, 0);
+    return http_get(host, path, 1, outFile);
+  }
+  ui(L"Download complete.", ST_DOWN, 100);
+  return 1;
+}
+
+static void do_uninstall(HWND hwnd) {
+  if (!gInstalled) {
+    ui(L"Nothing to uninstall.", ST_IDLE, 0);
+    return;
+  }
+  if (MessageBoxW(hwnd, L"Delete Aura from this folder, including profile data\\?", L"Aura",
+                  MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2) != IDYES)
+    return;
+  kill_engine();
+  wchar_t self[MAX_PATH], tmp[MAX_PATH], wipe[MAX_PATH], cmdl[1200];
+  GetModuleFileNameW(0, self, MAX_PATH);
+  GetTempPathW(MAX_PATH, tmp);
+  swprintf(wipe, MAX_PATH, L"%sAuraWipe.exe", tmp);
+  CopyFileW(self, wipe, FALSE);
+  swprintf(cmdl, 1200, L"\"%s\" --wipe \"%s\"", wipe, gRoot);
+  STARTUPINFOW si;
+  PROCESS_INFORMATION pi;
+  ZeroMemory(&si, sizeof(si));
+  si.cb = sizeof(si);
+  ZeroMemory(&pi, sizeof(pi));
+  if (CreateProcessW(wipe, cmdl, 0, 0, FALSE, 0, 0, tmp, &si, &pi)) {
+    CloseHandle(pi.hThread);
+    CloseHandle(pi.hProcess);
+    DestroyWindow(hwnd);
+  } else
+    ui(L"Could not start uninstall.", ST_ERR, 0);
 }
 
 static int json_find_quoted(const char *json, const char *key, int nth, char *out, int n) {
@@ -897,74 +1134,13 @@ static DWORD WINAPI th_check(LPVOID) {
   gGitMode = 0;
   gSha[0] = 0;
   if (gInstalled) {
-    if (check_git_main()) return 0;
-    if (gHttpStatus == 403) {
-      ui(L"GitHub rate limit. Check again in a few minutes.", ST_ERR, 0);
-      return 0;
-    }
-    ui(L"GitHub main unreachable, checking Releases…", ST_CHECK, gPct);
-  }
-  ui(L"Checking GitHub releases…", ST_CHECK, gPct);
-  wchar_t upd[MAX_PATH];
-  join(upd, MAX_PATH, gRoot, L"updates");
-  CreateDirectoryW(upd, 0);
-  if (!http_get(L"api.github.com", L"/repos/SelfC0de/Aura-Browser/releases?per_page=20", 0, 0)) {
-    wchar_t msg[240];
-    if (gHttpStatus == 403)
-      ui(L"GitHub rate limit. Check again in a few minutes.", ST_ERR, 0);
-    else {
-      swprintf(msg, 240, L"GitHub check failed (HTTP %lu, err %lu).", gHttpStatus, gHttpErr);
-      ui(msg, ST_ERR, 0);
-    }
-    return 0;
-  }
-  wchar_t jp[MAX_PATH];
-  join(jp, MAX_PATH, gRoot, L"updates\\releases.json");
-  FILE *f = _wfopen(jp, L"rb");
-  if (!f) {
-    ui(L"No release list.", ST_ERR, 0);
-    return 0;
-  }
-  fseek(f, 0, SEEK_END);
-  long n = ftell(f);
-  fseek(f, 0, SEEK_SET);
-  char *json = (char *)HeapAlloc(GetProcessHeap(), 0, n + 1);
-  if (!json) {
-    fclose(f);
-    return 0;
-  }
-  fread(json, 1, n, f);
-  json[n] = 0;
-  fclose(f);
-  if (n < 8 || json[0] == '{') {
-    /* 404 object */
-    HeapFree(GetProcessHeap(), 0, json);
-    if (!gInstalled)
-      ui(L"No GitHub releases yet. Drop aura-payload.zip next to this exe, or publish v0.0.0.1r.", ST_IDLE, 0);
-    else
-      ui(L"This copy is up to date. No newer tag on GitHub.", ST_DONE, 0);
+    ui(L"Updates install in the browser on restart. Uninstall removes this copy.", ST_DONE, 0);
     wcsncpy(gRemoteStr, gLocalStr, 63);
     return 0;
   }
-  int hit = pick_release(json);
-  HeapFree(GetProcessHeap(), 0, json);
-  if (!hit) {
-    wcsncpy(gRemoteStr, gLocalStr, 63);
-    gRemote = gLocal;
-    ui(L"This copy is up to date.", ST_DONE, 0);
-    return 0;
-  }
-  wchar_t msg[400];
-  if (!gInstalled) {
-    swprintf(msg, 400, L"Payload %s. Download unpacks next to AuraLauncher.exe (AuraBrowser.exe + engine). data\\ is created on first run.", gRemoteStr);
-    ui(msg, ST_READY, 0);
-  } else if (gRemote.kind == L'p') {
-    swprintf(msg, 400, L"Mandatory patch %s. Download replaces files next to AuraBrowser.exe. Profile data\\ is kept.", gRemoteStr);
-    ui(msg, ST_READY, 0);
-  } else {
-    swprintf(msg, 400, L"Release %s is available. Download replaces files next to AuraBrowser.exe. Profile data\\ is kept.", gRemoteStr);
-    ui(msg, ST_READY, 0);
-  }
+  ui(L"Ready. Download installs Aura into this folder.", ST_READY, 0);
+  wcsncpy(gUrl, L"https://github.com/SelfC0de/Aura-Browser/releases/latest/download/Aura-win64.zip", 1023);
+  gUrl[1023] = 0;
   return 0;
 }
 
@@ -1119,40 +1295,14 @@ static DWORD WINAPI th_down(LPVOID) {
     return 0;
   }
 
-  if (!gUrl[0] && exists(side)) {
-    CopyFileW(side, zip, FALSE);
-    ui(L"Using aura-payload.zip beside the launcher.", ST_APPLY, 100);
-    apply_zip(zip);
-    return 0;
-  }
-  if (!gUrl[0] && extract_embedded(zip)) {
-    apply_zip(zip);
-    return 0;
-  }
-  if (!gUrl[0]) {
-    /* parse host/path from empty — try check first */
-    ui(L"No asset URL. Check Update, then Download. Zip name must end with .zip.", ST_ERR, 0);
-    return 0;
-  }
-  /* https://github.com/... or https://objects.githubusercontent.com/ */
-  const wchar_t *p = gUrl;
-  if (!wcsncmp(p, L"https://", 8)) p += 8;
-  wchar_t host[160], path[860];
-  const wchar_t *sl = wcschr(p, L'/');
-  if (!sl) {
-    ui(L"Bad asset URL.", ST_ERR, 0);
-    return 0;
-  }
-  wcsncpy(host, p, 159);
-  host[sl - p] = 0;
-  wcsncpy(path, sl, 859);
-  if (wcsstr(gUrl, L"-files.zip") || wcsstr(gUrl, L"-patch.zip"))
-    ui(L"Downloading Aura files only (engine stays).", ST_DOWN, 0);
-  else
-    ui(L"Downloading release zip…", ST_DOWN, 0);
-  if (!http_get(host, path, 1, zip)) {
-    ui(L"Download failed.", ST_ERR, gPct);
-    return 0;
+  ui(L"Downloading Aura…", ST_DOWN, 0);
+  if (!download_parallel(zip)) {
+    if (exists(side) && CopyFileW(side, zip, FALSE))
+      ui(L"Using local payload.", ST_APPLY, 0);
+    else {
+      ui(L"Download failed.", ST_ERR, gPct);
+      return 0;
+    }
   }
   apply_zip(zip);
   return 0;
@@ -1185,6 +1335,7 @@ static LRESULT CALLBACK wnd(HWND hwnd, UINT m, WPARAM w, LPARAM l) {
     if (hit(rCheck, x, y)) hov = 1;
     else if (hit(rDown, x, y)) hov = 2;
     else if (hit(rClose, x, y)) hov = 3;
+    else if (hit(rUninst, x, y)) hov = 4;
     if (hov != gHover) {
       gHover = hov;
       InvalidateRect(hwnd, 0, FALSE);
@@ -1199,7 +1350,7 @@ static LRESULT CALLBACK wnd(HWND hwnd, UINT m, WPARAM w, LPARAM l) {
     return 0;
   case WM_LBUTTONDOWN: {
     int x = GET_X_LPARAM(l), y = GET_Y_LPARAM(l);
-    if (!hit(rClose, x, y) && !hit(rCheck, x, y) && !hit(rDown, x, y) && !hit(rPill, x, y))
+    if (!hit(rClose, x, y) && !hit(rCheck, x, y) && !hit(rDown, x, y) && !hit(rPill, x, y) && !hit(rUninst, x, y))
       SendMessageW(hwnd, WM_NCLBUTTONDOWN, HTCAPTION, 0);
     return 0;
   }
@@ -1211,6 +1362,7 @@ static LRESULT CALLBACK wnd(HWND hwnd, UINT m, WPARAM w, LPARAM l) {
     }
     if (hit(rCheck, x, y)) on_check();
     if (hit(rDown, x, y)) on_down();
+    if (hit(rUninst, x, y)) do_uninstall(hwnd);
     return 0;
   }
   case WM_KEYDOWN:
@@ -1232,6 +1384,31 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR cmd, int) {
   wchar_t *sl = wcsrchr(mod, L'\\');
   if (sl) *sl = 0;
   wcsncpy(gRoot, mod, MAX_PATH);
+  if (cmd && wcsstr(cmd, L"--wipe")) {
+    wchar_t *p = wcsstr(cmd, L"--wipe") + 6;
+    while (*p == L' ') p++;
+    if (*p == L'"') p++;
+    wchar_t dir[MAX_PATH];
+    wcsncpy(dir, p, MAX_PATH - 1);
+    dir[MAX_PATH - 1] = 0;
+    wchar_t *q = wcschr(dir, L'"');
+    if (q) *q = 0;
+    if (wcslen(dir) > 8) wcsncpy(gRoot, dir, MAX_PATH);
+    wchar_t probe[MAX_PATH];
+    join(probe, MAX_PATH, gRoot, L"engine\\AuraBrowser.exe");
+    if (exists(probe) || exists(gRoot)) {
+      Sleep(800);
+      kill_engine();
+      Sleep(400);
+      wchar_t sys[MAX_PATH], cm[MAX_PATH], args[900];
+      GetSystemDirectoryW(sys, MAX_PATH);
+      swprintf(cm, MAX_PATH, L"%s\\cmd.exe", sys);
+      swprintf(args, 900, L"/c rmdir /s /q \"%s\"", gRoot);
+      run_cmd(cm, args, 0);
+    }
+    DeleteCriticalSection(&gCs);
+    return 0;
+  }
   read_local();
   gInstalled = installed();
   if (cmd && wcsstr(cmd, L"--silent")) {
@@ -1242,9 +1419,9 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR cmd, int) {
     return 0;
   }
   if (!gInstalled)
-    wcsncpy(gStatus, L"Aura is not in this folder. Check Update, then Download - files unpack next to this exe.", 399);
+    wcsncpy(gStatus, L"Press Download to install Aura here.", 399);
   else
-    wcsncpy(gStatus, L"Check GitHub main. Download pulls Aura files only. Gecko dlls stay.", 399);
+    wcsncpy(gStatus, L"Updates install in the browser on restart.", 399);
 
   if (cmd && wcsstr(cmd, L"--update")) gAuto = 1;
 

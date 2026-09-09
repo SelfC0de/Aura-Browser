@@ -48,7 +48,7 @@ Aura is not Tor and not a VPN. It does not spoof the UA. It does not send teleme
 
 ### Install
 
-Download the latest **Release**. Run `AuraLauncher.exe`. Later updates install on restart.
+Download **AuraLauncher.exe**. It installs the browser. Updates apply on restart.
 
 ### Updates
 
@@ -101,7 +101,7 @@ Chrome, Яндекс и VK-браузеры стучат вендору. Обы�
 
 ### Установка
 
-Скачай последний **Release**. Запусти `AuraLauncher.exe`. Дальше обновления ставятся при перезапуске.
+Скачай **AuraLauncher.exe**. Он ставит браузер. Обновления — при перезапуске.
 
 ### Обновления
 
