@@ -40,6 +40,7 @@ $map = @{
   "chrome/browser/content/browser/aura-welcome/plugins.html" = Join-Path $welcome "plugins.html"
   "chrome/browser/content/browser/aura-welcome/plugins.css" = Join-Path $welcome "plugins.css"
   "chrome/browser/content/browser/aura-welcome/plugins-page.js" = Join-Path $welcome "plugins-page.js"
+  "chrome/browser/content/browser/aura-welcome/aura-plugins-pane.mjs" = Join-Path $welcome "aura-plugins-pane.mjs"
 }
 
 $compLine = "component {b7e4d2a1-0c19-4f8a-9e33-aa1100aa1100} browser/content/browser/aura-welcome/aura-protocol.js"

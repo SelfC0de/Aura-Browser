@@ -94,6 +94,30 @@ $js2 = $js.Replace(
 if ($js2 -eq $js) { throw "sync visible replace failed" }
 $js = $js2
 
+if ($js -notmatch "aura-plugins-pane") {
+  $js2 = $js.Replace(
+    @'
+    module: "chrome://browser/content/preferences/config/about-firefox.mjs",
+    visible: () => srdSectionPrefs.all,
+  },
+'@,
+    @'
+    module: "chrome://browser/content/preferences/config/about-firefox.mjs",
+    visible: () => srdSectionPrefs.all,
+  },
+  plugins: {
+    l10nId: "aura-plugins-header",
+    iconSrc: "chrome://mozapps/skin/extensions/extension.svg",
+    groupIds: ["auraPluginsList"],
+    module: "chrome://browser/content/aura-welcome/aura-plugins-pane.mjs",
+    visible: () => true,
+  },
+'@
+  )
+  if ($js2 -eq $js) { throw "plugins pane insert failed" }
+  $js = $js2
+}
+
 $legacy2 = $legacy.Replace(
   '["general", { category: "sync" }]',
   '["general", { category: "home" }]'
@@ -115,11 +139,50 @@ if ($xhtml2 -eq $xhtml) {
   $xhtml = $xhtml2
 }
 
+if ($xhtml -notmatch "category-aura-plugins") {
+  $xhtml2 = $xhtml.Replace(
+    @'
+      <html:moz-page-nav-button id="category-about-firefox"
+        view="paneAbout"
+        iconsrc="chrome://browser/skin/sidebar/firefox.svg"
+        data-l10n-id="pane-about-firefox-title">
+      </html:moz-page-nav-button>
+'@,
+    @'
+      <html:moz-page-nav-button id="category-about-firefox"
+        view="paneAbout"
+        iconsrc="chrome://browser/skin/sidebar/firefox.svg"
+        data-l10n-id="pane-about-firefox-title">
+      </html:moz-page-nav-button>
+      <html:moz-page-nav-button id="category-aura-plugins"
+        view="panePlugins"
+        iconsrc="chrome://mozapps/skin/extensions/extension.svg"
+        data-l10n-id="pane-aura-plugins-title">
+      </html:moz-page-nav-button>
+'@
+  )
+  if ($xhtml2 -eq $xhtml) { throw "plugins nav button insert failed" }
+  $xhtml = $xhtml2
+}
+
+$ftlPath = "localization/en-US/browser/preferences/preferences.ftl"
+$ftl = Get-ZipText $omni $ftlPath
+if ($ftl -notmatch "pane-aura-plugins-title") {
+  $ftl = $ftl.TrimEnd() + @"
+
+pane-aura-plugins-title = Plugins
+  .title = Plugins
+aura-plugins-header = Plugins
+  .title = Plugins
+"@
+}
+
 $map = @{
   $prefJsPath = $js
   $prefCssPath = $css
   $legacyPath = $legacy
   $xhtmlPath = $xhtml
+  $ftlPath = $ftl
 }
 Patch-Omni $omni $map
 Write-Host "omni.ja patched"
