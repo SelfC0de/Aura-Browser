@@ -79,8 +79,26 @@
         .showAlertNotification("", title || "Aura", body || "", false, "", null, "aura-plugin");
     } catch (e) {}
   }
+  function isLoaded(id) {
+    try {
+      if (Services.prefs.prefHasUserValue("aura.plugins.load")) {
+        const a = JSON.parse(Services.prefs.getStringPref("aura.plugins.load", "[]"));
+        return Array.isArray(a) && a.indexOf(id) !== -1;
+      }
+    } catch (e) {}
+    return !offSet().has(id);
+  }
+  function openPluginsTab(win) {
+    try {
+      win.openTrustedLinkIn("chrome://browser/content/aura-welcome/plugins.html", "tab");
+    } catch (e) {
+      try {
+        win.gBrowser.addTrustedTab("chrome://browser/content/aura-welcome/plugins.html");
+      } catch (e2) {}
+    }
+  }
   function runCommand(plugin, cmdId) {
-    if (offSet().has(plugin.id)) return;
+    if (!isLoaded(plugin.id)) return;
     const js = plugin._dir.clone();
     js.append("index.js");
     if (!js.exists()) return;
@@ -163,7 +181,7 @@
         if (!catalog.length) scan();
         const off = offSet();
         for (const p of catalog) {
-          if (off.has(p.id) || !p.commands) continue;
+          if (!isLoaded(p.id) || !p.commands) continue;
           for (const c of p.commands) {
             const k = parseKey(c.key);
             if (!k) continue;
@@ -176,7 +194,7 @@
         }
         if (e.ctrlKey && e.altKey && !e.shiftKey && String(e.key).toLowerCase() === "p") {
           e.preventDefault();
-          togglePanel(win);
+          openPluginsTab(win);
         }
       },
       true
@@ -264,6 +282,21 @@
   }
   function boot() {
     for (const win of Services.wm.getEnumerator("navigator:browser")) attach(win);
+    try {
+      Services.obs.addObserver(
+        {
+          observe: function (s, t, d) {
+            if (t !== "aura-plugin-run") return;
+            scan();
+            const p = catalog.find(function (x) {
+              return x.id === d;
+            });
+            if (p && p.commands && p.commands[0]) runCommand(p, p.commands[0].id);
+          },
+        },
+        "aura-plugin-run"
+      );
+    } catch (e) {}
     const obs = {
       observe: function (s, t) {
         if (t === "domwindowopened") {

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="color-scheme" content="dark">
+  <title>Aura plugins</title>
+  <link rel="stylesheet" href="plugins.css">
+</head>
+<body>
+  <header class="top">
+    <div>
+      <div class="word">Aura</div>
+      <div class="sub">Plugins</div>
+    </div>
+    <div class="hint">Эфемерные. Без инъекции в страницу. Ctrl+Alt+P</div>
+  </header>
+
+  <section class="bar">
+    <label class="all"><input type="checkbox" id="sel-all"> Выбрать все</label>
+    <div class="spacer"></div>
+    <button type="button" class="ghost" id="btn-none">Снять</button>
+    <button type="button" class="ghost" id="btn-off">Выключить выбранные</button>
+    <button type="button" class="pri" id="btn-load">Подгрузить выбранные</button>
+  </section>
+
+  <section id="list" class="list"></section>
+  <p id="empty" class="empty" hidden>Нет плагинов в папке plugins\</p>
+
+  <script src="plugins-page.js"></script>
+</body>
+</html>

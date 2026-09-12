@@ -46,6 +46,9 @@ $map = @{
   "chrome/browser/content/browser/aura-welcome/aura-content.js" = "C:\AuraBrowser\engine\welcome\aura-content.js"
   "chrome/browser/content/browser/aura-welcome/aura-protocol.js" = "C:\AuraBrowser\engine\welcome\aura-protocol.js"
   "chrome/browser/content/browser/aura-welcome/aura-plugins.js" = "C:\AuraBrowser\engine\welcome\aura-plugins.js"
+  "chrome/browser/content/browser/aura-welcome/plugins.html" = "C:\AuraBrowser\engine\welcome\plugins.html"
+  "chrome/browser/content/browser/aura-welcome/plugins.css" = "C:\AuraBrowser\engine\welcome\plugins.css"
+  "chrome/browser/content/browser/aura-welcome/plugins-page.js" = "C:\AuraBrowser\engine\welcome\plugins-page.js"
   $xhtmlPath = $null
 }
 
