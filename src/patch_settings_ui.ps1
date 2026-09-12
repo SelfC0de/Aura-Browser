@@ -65,8 +65,7 @@ $js2 = $js.Replace(
   const kDefaultCategory = redesignEnabled ? "home" : "general";
 '@
 )
-if ($js2 -eq $js) { throw "default pane replace failed" }
-$js = $js2
+if ($js2 -eq $js) { Write-Host "default pane already patched" } else { $js = $js2 }
 
 $js2 = $js.Replace(
   @'
@@ -77,8 +76,7 @@ $js2 = $js.Replace(
     visible: () => false,
 '@
 )
-if ($js2 -eq $js) { throw "ai visible replace failed" }
-$js = $js2
+if ($js2 -eq $js) { Write-Host "ai visible already patched" } else { $js = $js2 }
 
 $js2 = $js.Replace(
   @'
@@ -91,17 +89,10 @@ $js2 = $js.Replace(
     visible: () => false,
 '@
 )
-if ($js2 -eq $js) { throw "sync visible replace failed" }
-$js = $js2
+if ($js2 -eq $js) { Write-Host "sync visible already patched" } else { $js = $js2 }
 
 if ($js -notmatch "aura-plugins-pane") {
-  $js2 = $js.Replace(
-    @'
-    module: "chrome://browser/content/preferences/config/about-firefox.mjs",
-    visible: () => srdSectionPrefs.all,
-  },
-'@,
-    @'
+  $js = $js -replace '(module: "chrome://browser/content/preferences/config/about-firefox\.mjs",\s+visible: \(\) => srdSectionPrefs\.all,\s+\},)', @'
     module: "chrome://browser/content/preferences/config/about-firefox.mjs",
     visible: () => srdSectionPrefs.all,
   },
@@ -113,17 +104,14 @@ if ($js -notmatch "aura-plugins-pane") {
     visible: () => true,
   },
 '@
-  )
-  if ($js2 -eq $js) { throw "plugins pane insert failed" }
-  $js = $js2
+  if ($js -notmatch "aura-plugins-pane") { throw "plugins pane insert failed" }
 }
 
 $legacy2 = $legacy.Replace(
   '["general", { category: "sync" }]',
   '["general", { category: "home" }]'
 )
-if ($legacy2 -eq $legacy) { throw "legacy mapping replace failed" }
-$legacy = $legacy2
+if ($legacy2 -eq $legacy) { Write-Host "legacy mapping already patched" } else { $legacy = $legacy2 }
 
 if ($css -notmatch "Aura compact settings overlay") {
   $css = $css + $overlay
@@ -140,15 +128,7 @@ if ($xhtml2 -eq $xhtml) {
 }
 
 if ($xhtml -notmatch "category-aura-plugins") {
-  $xhtml2 = $xhtml.Replace(
-    @'
-      <html:moz-page-nav-button id="category-about-firefox"
-        view="paneAbout"
-        iconsrc="chrome://browser/skin/sidebar/firefox.svg"
-        data-l10n-id="pane-about-firefox-title">
-      </html:moz-page-nav-button>
-'@,
-    @'
+  $xhtml = $xhtml -replace '(<html:moz-page-nav-button id="category-about-firefox"[\s\S]*?</html:moz-page-nav-button>)', @'
       <html:moz-page-nav-button id="category-about-firefox"
         view="paneAbout"
         iconsrc="chrome://browser/skin/sidebar/firefox.svg"
@@ -160,9 +140,7 @@ if ($xhtml -notmatch "category-aura-plugins") {
         data-l10n-id="pane-aura-plugins-title">
       </html:moz-page-nav-button>
 '@
-  )
-  if ($xhtml2 -eq $xhtml) { throw "plugins nav button insert failed" }
-  $xhtml = $xhtml2
+  if ($xhtml -notmatch "category-aura-plugins") { throw "plugins nav button insert failed" }
 }
 
 $ftlPath = "localization/en-US/browser/preferences/preferences.ftl"
