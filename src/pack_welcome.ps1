@@ -28,6 +28,11 @@ if ($xhtml -notmatch "aura-vault.js") {
   $xhtml = $xhtml.Replace("</html:body>", "  $tag3`n</html:body>")
   if ($xhtml -notmatch "aura-vault.js") { throw "failed to inject aura-vault.js into browser.xhtml" }
 }
+$tag4 = '<script src="chrome://browser/content/aura-welcome/aura-plugins.js"/>'
+if ($xhtml -notmatch "aura-plugins.js") {
+  $xhtml = $xhtml.Replace("</html:body>", "  $tag4`n</html:body>")
+  if ($xhtml -notmatch "aura-plugins.js") { throw "failed to inject aura-plugins.js into browser.xhtml" }
+}
 
 $map = @{
   "chrome/browser/content/browser/aura-welcome/index.html"   = "C:\AuraBrowser\engine\welcome\index.html"
@@ -40,6 +45,7 @@ $map = @{
   "chrome/browser/content/browser/aura-welcome/aura-vault.js" = "C:\AuraBrowser\engine\welcome\aura-vault.js"
   "chrome/browser/content/browser/aura-welcome/aura-content.js" = "C:\AuraBrowser\engine\welcome\aura-content.js"
   "chrome/browser/content/browser/aura-welcome/aura-protocol.js" = "C:\AuraBrowser\engine\welcome\aura-protocol.js"
+  "chrome/browser/content/browser/aura-welcome/aura-plugins.js" = "C:\AuraBrowser\engine\welcome\aura-plugins.js"
   $xhtmlPath = $null
 }
 

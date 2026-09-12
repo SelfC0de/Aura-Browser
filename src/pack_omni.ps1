@@ -18,7 +18,7 @@ $sr = New-Object IO.StreamReader($ent.Open())
 $xhtml = $sr.ReadToEnd()
 $sr.Close(); $inRead.Dispose()
 
-foreach ($js in @("aura-menu.js","aura-ui.js","aura-vault.js")) {
+foreach ($js in @("aura-menu.js","aura-ui.js","aura-vault.js","aura-plugins.js")) {
   $tag = "<script src=`"chrome://browser/content/aura-welcome/$js`"/>"
   if ($xhtml -notmatch [regex]::Escape($js)) {
     $xhtml = $xhtml.Replace("</html:body>", "  $tag`n</html:body>")
@@ -36,6 +36,7 @@ $map = @{
   "chrome/browser/content/browser/aura-welcome/aura-vault.js" = Join-Path $welcome "aura-vault.js"
   "chrome/browser/content/browser/aura-welcome/aura-content.js" = Join-Path $welcome "aura-content.js"
   "chrome/browser/content/browser/aura-welcome/aura-protocol.js" = Join-Path $welcome "aura-protocol.js"
+  "chrome/browser/content/browser/aura-welcome/aura-plugins.js" = Join-Path $welcome "aura-plugins.js"
 }
 
 $compLine = "component {b7e4d2a1-0c19-4f8a-9e33-aa1100aa1100} browser/content/browser/aura-welcome/aura-protocol.js"

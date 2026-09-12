@@ -1,0 +1,13 @@
+{
+  "format": "aura-plugin",
+  "api": 1,
+  "id": "aura.copy-link",
+  "name": "Copy link",
+  "version": "0.1.0",
+  "startup": false,
+  "budget_ms": 12,
+  "permissions": ["clipboard", "tab"],
+  "commands": [
+    { "id": "copy", "title": "Copy page URL", "key": "Ctrl+Shift+L" }
+  ]
+}
