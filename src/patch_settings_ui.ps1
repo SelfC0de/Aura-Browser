@@ -117,14 +117,16 @@ if ($css -notmatch "Aura compact settings overlay") {
   $css = $css + $overlay
 }
 
-$xhtml2 = $xhtml.Replace(
-  '<html:moz-page-nav-button id="helpButton"',
-  '<html:moz-page-nav-button id="helpButton" hidden="true"'
-)
-if ($xhtml2 -eq $xhtml) {
-  Write-Host "helpButton already hidden or pattern missed"
+if ($xhtml -match 'id="helpButton"[^>]*hidden="true" hidden="true"') {
+  $xhtml = $xhtml.Replace('hidden="true" hidden="true"', 'hidden="true"')
+  Write-Host "helpButton duplicate hidden stripped"
+} elseif ($xhtml -match 'id="helpButton"' -and $xhtml -notmatch 'id="helpButton"[^>]*hidden=') {
+  $xhtml = $xhtml.Replace(
+    '<html:moz-page-nav-button id="helpButton"',
+    '<html:moz-page-nav-button id="helpButton" hidden="true"'
+  )
 } else {
-  $xhtml = $xhtml2
+  Write-Host "helpButton already hidden"
 }
 
 if ($xhtml -notmatch "category-aura-plugins") {
